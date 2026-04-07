@@ -4,14 +4,13 @@ import menuHamburgerIcon from "./assets/menu-hamburger.svg";
 import { ImageSourceOverlay } from "./components/ImageSourceOverlay";
 import { OverlayToolbar } from "./components/OverlayToolbar";
 import { PresetCanvas } from "./components/PresetCanvas";
-import type { PresetDocument } from "./dsl-schema";
 import type { RenderInputs } from "./lib/preset-engine";
 import {
   createOverlayItem,
   overlayAssetLibrary,
   type OverlayItem,
 } from "./lib/overlay-editor";
-import { derivePresetEditorModel } from "./lib/preset-editor-model";
+import { compileExportModel, compilePreset } from "./lib/preset-compiler";
 import { presetLibrary } from "./lib/preset-library";
 
 function App() {
@@ -22,14 +21,22 @@ function App() {
   const [selectedOverlayId, setSelectedOverlayId] = useState<string | null>(null);
   const [activeImageSlot, setActiveImageSlot] = useState<string | null>(null);
 
-  const selectedPreset = useMemo<PresetDocument | undefined>(
+  const selectedPreset = useMemo(
     () => presetLibrary.find((entry) => entry.id === selectedPresetId)?.preset,
     [selectedPresetId],
   );
 
-  const editorModel = useMemo(
-    () => (selectedPreset ? derivePresetEditorModel(selectedPreset) : { imageSlots: [], textSlots: [] }),
+  const compiledPreset = useMemo(
+    () => (selectedPreset ? compilePreset(selectedPreset) : null),
     [selectedPreset],
+  );
+
+  const exportModel = useMemo(
+    () =>
+      compiledPreset
+        ? compileExportModel(compiledPreset.renderModel, compiledPreset.editorModel, overlays)
+        : null,
+    [compiledPreset, overlays],
   );
 
   useEffect(() => {
@@ -49,7 +56,8 @@ function App() {
   }, [selectedPreset]);
 
   const activeImageLabel =
-    editorModel.imageSlots.find((slot) => slot.inputName === activeImageSlot)?.label ?? "Image";
+    compiledPreset?.editorModel.imageSlots.find((slot) => slot.inputName === activeImageSlot)?.label ??
+    "Image";
   const activeImageValue = activeImageSlot ? renderInputs[activeImageSlot] : null;
 
   return (
@@ -64,11 +72,13 @@ function App() {
       </button>
 
       <section className="canvas-only-layout">
-        {selectedPreset ? (
+        {compiledPreset && exportModel ? (
           <PresetCanvas
-            preset={selectedPreset}
+            metadata={compiledPreset.metadata}
+            renderModel={compiledPreset.renderModel}
+            editorModel={compiledPreset.editorModel}
+            exportModel={exportModel}
             inputs={renderInputs}
-            editorModel={editorModel}
             overlays={overlays}
             selectedOverlayId={selectedOverlayId}
             onOverlaySelect={setSelectedOverlayId}

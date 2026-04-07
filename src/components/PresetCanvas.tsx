@@ -6,16 +6,17 @@ import {
   type CSSProperties,
   type PointerEvent as ReactPointerEvent,
 } from "react";
-import type { PresetDocument } from "../dsl-schema";
 import type { RenderInputs } from "../lib/preset-engine";
 import { renderPresetToCanvas } from "../lib/preset-engine";
 import { findOverlayAtPoint, type OverlayItem } from "../lib/overlay-editor";
-import { deriveExportBounds, type PresetEditorModel } from "../lib/preset-editor-model";
+import type { EditorModel, ExportModel, PresetMetadataModel, RenderModel } from "../lib/preset-compiler";
 
 interface PresetCanvasProps {
-  preset: PresetDocument;
+  metadata: PresetMetadataModel;
+  renderModel: RenderModel;
+  editorModel: EditorModel;
+  exportModel: ExportModel;
   inputs: RenderInputs;
-  editorModel: PresetEditorModel;
   overlays: OverlayItem[];
   selectedOverlayId: string | null;
   onOverlaySelect: (id: string | null) => void;
@@ -25,9 +26,11 @@ interface PresetCanvasProps {
 }
 
 export function PresetCanvas({
-  preset,
-  inputs,
+  metadata,
+  renderModel,
   editorModel,
+  exportModel,
+  inputs,
   overlays,
   selectedOverlayId,
   onOverlaySelect,
@@ -41,8 +44,8 @@ export function PresetCanvas({
   const [status, setStatus] = useState("");
   const [activeTextInput, setActiveTextInput] = useState<string | null>(null);
   const [displaySize, setDisplaySize] = useState({
-    width: preset.output.width,
-    height: preset.output.height,
+    width: renderModel.width,
+    height: renderModel.height,
   });
   const [textContrastMap, setTextContrastMap] = useState<Record<string, { color: string; textShadow: string }>>({});
 
@@ -56,7 +59,7 @@ export function PresetCanvas({
     const currentCycle = renderCycleRef.current + 1;
     renderCycleRef.current = currentCycle;
     async function renderAndSample() {
-      await renderPresetToCanvas(targetCanvas, preset, inputs, overlays, {
+      await renderPresetToCanvas(targetCanvas, renderModel, inputs, overlays, {
         shouldAbort: () => renderCycleRef.current !== currentCycle,
         hiddenTextInputs: editorModel.textSlots
           .filter(
@@ -127,7 +130,7 @@ export function PresetCanvas({
     }
 
     void renderAndSample();
-  }, [activeTextInput, editorModel.textSlots, inputs, overlays, preset]);
+  }, [activeTextInput, editorModel.textSlots, inputs, overlays, renderModel]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -137,22 +140,22 @@ export function PresetCanvas({
 
     const observer = new ResizeObserver(() => {
       setDisplaySize({
-        width: canvas.clientWidth || preset.output.width,
-        height: canvas.clientHeight || preset.output.height,
+        width: canvas.clientWidth || renderModel.width,
+        height: canvas.clientHeight || renderModel.height,
       });
     });
 
     observer.observe(canvas);
     setDisplaySize({
-      width: canvas.clientWidth || preset.output.width,
-      height: canvas.clientHeight || preset.output.height,
+      width: canvas.clientWidth || renderModel.width,
+      height: canvas.clientHeight || renderModel.height,
     });
 
     return () => observer.disconnect();
-  }, [preset.output.height, preset.output.width]);
+  }, [renderModel.height, renderModel.width]);
 
-  const scaleX = displaySize.width / preset.output.width;
-  const scaleY = displaySize.height / preset.output.height;
+  const scaleX = displaySize.width / renderModel.width;
+  const scaleY = displaySize.height / renderModel.height;
 
   function getCanvasPoint(event: ReactPointerEvent<HTMLCanvasElement>) {
     const canvas = canvasRef.current;
@@ -218,11 +221,6 @@ export function PresetCanvas({
         } satisfies CSSProperties,
       })),
     [activeTextInput, editorModel.textSlots, scaleX, scaleY, textContrastMap],
-  );
-
-  const exportBounds = useMemo(
-    () => deriveExportBounds(preset, editorModel, overlays),
-    [editorModel, overlays, preset],
   );
 
   return (
@@ -333,7 +331,7 @@ export function PresetCanvas({
         </div>
 
         <div className="preview-meta floating">
-          <strong>{preset.metadata.name}</strong>
+          <strong>{metadata.name}</strong>
           <div className="preview-actions">
             <button
               type="button"
@@ -345,11 +343,11 @@ export function PresetCanvas({
                 }
 
                 const exportCanvas = document.createElement("canvas");
-                await renderPresetToCanvas(exportCanvas, preset, inputs, overlays);
+                await renderPresetToCanvas(exportCanvas, renderModel, inputs, overlays);
 
                 const croppedCanvas = document.createElement("canvas");
-                croppedCanvas.width = exportBounds.width;
-                croppedCanvas.height = exportBounds.height;
+                croppedCanvas.width = exportModel.bounds.width;
+                croppedCanvas.height = exportModel.bounds.height;
 
                 const croppedContext = croppedCanvas.getContext("2d");
                 if (!croppedContext) {
@@ -359,14 +357,14 @@ export function PresetCanvas({
 
                 croppedContext.drawImage(
                   exportCanvas,
-                  exportBounds.x,
-                  exportBounds.y,
-                  exportBounds.width,
-                  exportBounds.height,
+                  exportModel.bounds.x,
+                  exportModel.bounds.y,
+                  exportModel.bounds.width,
+                  exportModel.bounds.height,
                   0,
                   0,
-                  exportBounds.width,
-                  exportBounds.height,
+                  exportModel.bounds.width,
+                  exportModel.bounds.height,
                 );
 
                 croppedCanvas.toBlob((blob) => {
@@ -378,11 +376,11 @@ export function PresetCanvas({
                   const url = URL.createObjectURL(blob);
                   const link = document.createElement("a");
                   link.href = url;
-                  link.download = `${preset.metadata.id}.png`;
+                  link.download = `${metadata.id}.png`;
                   link.click();
                   URL.revokeObjectURL(url);
                   setStatus("PNG downloaded");
-                }, preset.output.format);
+                }, exportModel.format);
               }}
             >
               Save Image

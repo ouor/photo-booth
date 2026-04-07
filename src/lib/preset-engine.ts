@@ -1,12 +1,11 @@
-import type {
-  DrawShapeCommand,
-  DrawSpeechBubbleCommand,
-  DrawTextCommand,
-  FitMode,
-  InputDefinition,
-  PresetDocument,
-} from "../dsl-schema";
 import type { OverlayItem } from "./overlay-editor";
+import type {
+  ImageRenderNode,
+  RenderModel,
+  ShapeRenderNode,
+  SpeechBubbleRenderNode,
+  TextRenderNode,
+} from "./preset-compiler";
 
 type RenderImageValue = {
   kind: "image";
@@ -20,52 +19,6 @@ export type RenderInputValue = RenderImageValue | RenderTextValue | null | undef
 export type { RenderImageValue };
 
 export type RenderInputs = Record<string, RenderInputValue>;
-
-type SceneNode =
-  | {
-      kind: "shape";
-      id?: string;
-      zIndex: number;
-      visibleWhen?: string;
-      command: DrawShapeCommand;
-    }
-  | {
-      kind: "image";
-      id?: string;
-      zIndex: number;
-      visibleWhen?: string;
-      source: string;
-      x: number;
-      y: number;
-      width: number;
-      height: number;
-      fit: FitMode;
-      angle?: number;
-      opacity?: number;
-      maskRadius?: number;
-      filter?: string;
-    }
-  | {
-      kind: "text";
-      id?: string;
-      zIndex: number;
-      visibleWhen?: string;
-      command: DrawTextCommand;
-    }
-  | {
-      kind: "speechBubble";
-      id?: string;
-      zIndex: number;
-      visibleWhen?: string;
-      command: DrawSpeechBubbleCommand;
-    };
-
-interface SceneState {
-  width: number;
-  height: number;
-  backgroundColor: string;
-  nodes: SceneNode[];
-}
 
 interface RenderOptions {
   shouldAbort?: () => boolean;
@@ -93,27 +46,20 @@ function evaluateVisibleWhen(expression: string | undefined, inputs: RenderInput
   }
 }
 
-function getInputDefinition(preset: PresetDocument, name: string): InputDefinition | undefined {
-  return preset.inputs.find((input) => input.name === name);
-}
-
 function resolveTextValue(
-  preset: PresetDocument,
-  source: string | undefined,
-  fallbackText: string | undefined,
+  node: TextRenderNode | SpeechBubbleRenderNode,
   inputs: RenderInputs,
 ): string {
-  if (source) {
-    const value = inputs[source];
+  if (node.source) {
+    const value = inputs[node.source];
     if (typeof value === "string" && value.trim().length > 0) {
       return value;
     }
 
-    const input = getInputDefinition(preset, source);
-    return input?.label ?? source;
+    return node.placeholderLabel ?? node.source;
   }
 
-  return fallbackText ?? "";
+  return node.text ?? "";
 }
 
 function resolveImageUrl(source: string, inputs: RenderInputs): string | null {
@@ -123,140 +69,6 @@ function resolveImageUrl(source: string, inputs: RenderInputs): string | null {
   }
 
   return null;
-}
-
-function buildScene(preset: PresetDocument): SceneState {
-  const scene: SceneState = {
-    width: preset.output.width,
-    height: preset.output.height,
-    backgroundColor: preset.output.backgroundColor ?? "#ffffff",
-    nodes: [],
-  };
-
-  const imageNodes = new Map<string, Extract<SceneNode, { kind: "image" }>>();
-
-  preset.commands.forEach((command, index) => {
-    const zIndex = command.zIndex ?? index;
-
-    switch (command.op) {
-      case "createCanvas":
-        scene.width = command.width;
-        scene.height = command.height;
-        scene.backgroundColor = command.backgroundColor ?? scene.backgroundColor;
-        break;
-      case "drawShape":
-        scene.nodes.push({
-          kind: "shape",
-          id: command.id,
-          zIndex,
-          visibleWhen: command.visibleWhen,
-          command,
-        });
-        break;
-      case "placeImage": {
-        const node: Extract<SceneNode, { kind: "image" }> = {
-          kind: "image",
-          id: command.id,
-          zIndex,
-          visibleWhen: command.visibleWhen,
-          source: command.source,
-          x: command.x,
-          y: command.y,
-          width: command.width,
-          height: command.height,
-          fit: command.fit ?? "cover",
-          angle: command.angle,
-          opacity: command.opacity,
-        };
-        scene.nodes.push(node);
-        if (command.id) {
-          imageNodes.set(command.id, node);
-        }
-        break;
-      }
-      case "maskImage": {
-        const node = imageNodes.get(command.target);
-        if (node && command.shape === "roundRect") {
-          node.maskRadius = command.radius ?? 0;
-        }
-        break;
-      }
-      case "applyFilter": {
-        const node = imageNodes.get(command.target);
-        if (node) {
-          const filters = command.filters.map((entry) => {
-            switch (entry.type) {
-              case "brightness":
-                return `brightness(${1 + (entry.amount ?? 0)})`;
-              case "contrast":
-                return `contrast(${1 + (entry.amount ?? 0)})`;
-              case "blur":
-                return `blur(${Math.max(0, entry.amount ?? 0)}px)`;
-              case "grayscale":
-                return `grayscale(1)`;
-              case "sepia":
-                return `sepia(${Math.max(0, entry.amount ?? 1)})`;
-              case "invert":
-                return entry.enabled ? "invert(1)" : "";
-              case "saturation":
-                return `saturate(${1 + (entry.amount ?? 0)})`;
-              default:
-                return "";
-            }
-          });
-
-          node.filter = filters.filter(Boolean).join(" ");
-        }
-        break;
-      }
-      case "drawText":
-        scene.nodes.push({
-          kind: "text",
-          id: command.id,
-          zIndex,
-          visibleWhen: command.visibleWhen,
-          command,
-        });
-        break;
-      case "drawSticker":
-        scene.nodes.push({
-          kind: "image",
-          id: command.id,
-          zIndex,
-          visibleWhen: command.visibleWhen,
-          source: command.source,
-          x: command.x,
-          y: command.y,
-          width: command.width,
-          height: command.height,
-          fit: "contain",
-          angle: command.angle,
-          opacity: command.opacity,
-        });
-        break;
-      case "drawSpeechBubble":
-        scene.nodes.push({
-          kind: "speechBubble",
-          id: command.id,
-          zIndex,
-          visibleWhen: command.visibleWhen,
-          command,
-        });
-        break;
-      case "setOpacity": {
-        const node = imageNodes.get(command.target);
-        if (node) {
-          node.opacity = command.opacity;
-        }
-        break;
-      }
-      default:
-        break;
-    }
-  });
-
-  scene.nodes.sort((a, b) => a.zIndex - b.zIndex);
-  return scene;
 }
 
 function wrapText(
@@ -287,7 +99,7 @@ function wrapText(
   return lines.slice(0, maxLines);
 }
 
-function toCanvasTextAlign(value: DrawTextCommand["style"]["textAlign"]): CanvasTextAlign {
+function toCanvasTextAlign(value: TextRenderNode["style"]["textAlign"]): CanvasTextAlign {
   if (value === "center" || value === "right") {
     return value;
   }
@@ -396,35 +208,35 @@ async function drawOverlays(ctx: CanvasRenderingContext2D, overlays: OverlayItem
   }
 }
 
-function drawShape(ctx: CanvasRenderingContext2D, command: DrawShapeCommand) {
-  const radius = typeof command.style.cornerRadius === "number" ? command.style.cornerRadius : 0;
-  const width = command.width ?? 0;
-  const height = command.height ?? 0;
+function drawShape(ctx: CanvasRenderingContext2D, node: ShapeRenderNode) {
+  const radius = typeof node.style.cornerRadius === "number" ? node.style.cornerRadius : 0;
+  const width = node.width ?? 0;
+  const height = node.height ?? 0;
 
   ctx.save();
-  ctx.globalAlpha = command.opacity ?? 1;
+  ctx.globalAlpha = node.opacity ?? 1;
 
-  if (command.shape === "roundRect" || command.shape === "rect") {
-    drawRoundedRect(ctx, command.x, command.y, width, height, command.shape === "roundRect" ? radius : 0);
-  } else if (command.shape === "circle") {
+  if (node.shape === "roundRect" || node.shape === "rect") {
+    drawRoundedRect(ctx, node.x, node.y, width, height, node.shape === "roundRect" ? radius : 0);
+  } else if (node.shape === "circle") {
     ctx.beginPath();
-    ctx.arc(command.x + width / 2, command.y + width / 2, width / 2, 0, Math.PI * 2);
-  } else if (command.shape === "ellipse") {
+    ctx.arc(node.x + width / 2, node.y + width / 2, width / 2, 0, Math.PI * 2);
+  } else if (node.shape === "ellipse") {
     ctx.beginPath();
-    ctx.ellipse(command.x + width / 2, command.y + height / 2, width / 2, height / 2, 0, 0, Math.PI * 2);
+    ctx.ellipse(node.x + width / 2, node.y + height / 2, width / 2, height / 2, 0, 0, Math.PI * 2);
   } else {
     ctx.restore();
     return;
   }
 
-  if (command.style.fill) {
-    ctx.fillStyle = command.style.fill;
+  if (node.style.fill) {
+    ctx.fillStyle = node.style.fill;
     ctx.fill();
   }
 
-  if (command.style.stroke) {
-    ctx.strokeStyle = command.style.stroke.color;
-    ctx.lineWidth = command.style.stroke.width ?? 1;
+  if (node.style.stroke) {
+    ctx.strokeStyle = node.style.stroke.color;
+    ctx.lineWidth = node.style.stroke.width ?? 1;
     ctx.stroke();
   }
 
@@ -457,70 +269,68 @@ function drawPlaceholderImage(
 
 function drawTextNode(
   ctx: CanvasRenderingContext2D,
-  preset: PresetDocument,
-  command: DrawTextCommand,
+  node: TextRenderNode,
   inputs: RenderInputs,
 ) {
-  const text = resolveTextValue(preset, command.source, command.text, inputs);
-  const fontWeight = command.style.fontWeight ?? "normal";
-  const fontStyle = command.style.fontStyle ?? "normal";
+  const text = resolveTextValue(node, inputs);
+  const fontWeight = node.style.fontWeight ?? "normal";
+  const fontStyle = node.style.fontStyle ?? "normal";
 
   ctx.save();
-  ctx.globalAlpha = command.opacity ?? 1;
-  ctx.font = `${fontStyle} ${fontWeight} ${command.style.fontSize}px ${command.style.fontFamily}`;
-  ctx.fillStyle = command.style.fill;
-  ctx.textAlign = toCanvasTextAlign(command.style.textAlign);
+  ctx.globalAlpha = node.opacity ?? 1;
+  ctx.font = `${fontStyle} ${fontWeight} ${node.style.fontSize}px ${node.style.fontFamily}`;
+  ctx.fillStyle = node.style.fill;
+  ctx.textAlign = toCanvasTextAlign(node.style.textAlign);
   ctx.textBaseline = "top";
 
-  if (command.style.stroke) {
-    ctx.strokeStyle = command.style.stroke.color;
-    ctx.lineWidth = command.style.stroke.width ?? 1;
+  if (node.style.stroke) {
+    ctx.strokeStyle = node.style.stroke.color;
+    ctx.lineWidth = node.style.stroke.width ?? 1;
   }
 
-  const lines = wrapText(ctx, text, command.width, command.maxLines);
-  const lineHeight = command.style.lineHeight
-    ? command.style.fontSize * command.style.lineHeight
-    : command.style.fontSize * 1.2;
+  const lines = wrapText(ctx, text, node.width, node.maxLines);
+  const lineHeight = node.style.lineHeight
+    ? node.style.fontSize * node.style.lineHeight
+    : node.style.fontSize * 1.2;
   const drawX =
-    command.style.textAlign === "center"
-      ? command.x + command.width / 2
-      : command.style.textAlign === "right"
-        ? command.x + command.width
-        : command.x;
+    node.style.textAlign === "center"
+      ? node.x + node.width / 2
+      : node.style.textAlign === "right"
+        ? node.x + node.width
+        : node.x;
 
   lines.forEach((line, index) => {
-    const y = command.y + index * lineHeight;
-    if (command.style.stroke) {
-      ctx.strokeText(line, drawX, y, command.width);
+    const y = node.y + index * lineHeight;
+    if (node.style.stroke) {
+      ctx.strokeText(line, drawX, y, node.width);
     }
-    ctx.fillText(line, drawX, y, command.width);
+    ctx.fillText(line, drawX, y, node.width);
   });
   ctx.restore();
 }
 
 function drawSpeechBubble(
   ctx: CanvasRenderingContext2D,
-  preset: PresetDocument,
-  command: DrawSpeechBubbleCommand,
+  node: SpeechBubbleRenderNode,
   inputs: RenderInputs,
 ) {
-  const radius = typeof command.style.cornerRadius === "number" ? command.style.cornerRadius : 24;
-  const text = resolveTextValue(preset, command.source, command.text, inputs);
-  const tailWidth = command.tail?.size?.width ?? 32;
-  const tailHeight = command.tail?.size?.height ?? 24;
-  const tailX = command.x + 48;
-  const tailY = command.y + command.height;
+  const radius = typeof node.style.cornerRadius === "number" ? node.style.cornerRadius : 24;
+  const text = resolveTextValue(node, inputs);
+  const tailWidth = node.tail?.size?.width ?? 32;
+  const tailHeight = node.tail?.size?.height ?? 24;
+  const tailX = node.x + 48;
+  const tailY = node.y + node.height;
 
   ctx.save();
-  ctx.globalAlpha = command.opacity ?? 1;
-  drawRoundedRect(ctx, command.x, command.y, command.width, command.height, radius);
-  if (command.style.fill) {
-    ctx.fillStyle = command.style.fill;
+  ctx.globalAlpha = node.opacity ?? 1;
+  drawRoundedRect(ctx, node.x, node.y, node.width, node.height, radius);
+  if (node.style.fill) {
+    ctx.fillStyle = node.style.fill;
     ctx.fill();
   }
-  if (command.style.stroke) {
-    ctx.strokeStyle = command.style.stroke.color;
-    ctx.lineWidth = command.style.stroke.width ?? 1;
+  if (node.style.stroke) {
+    ctx.strokeStyle = node.style.stroke.color;
+    ctx.lineWidth = node.style.stroke.width ?? 1;
     ctx.stroke();
   }
 
@@ -529,44 +339,43 @@ function drawSpeechBubble(
   ctx.lineTo(tailX + tailWidth, tailY);
   ctx.lineTo(tailX + tailWidth / 2, tailY + tailHeight);
   ctx.closePath();
-  if (command.style.fill) {
-    ctx.fillStyle = command.style.fill;
+  if (node.style.fill) {
+    ctx.fillStyle = node.style.fill;
     ctx.fill();
   }
-  if (command.style.stroke) {
-    ctx.strokeStyle = command.style.stroke.color;
-    ctx.lineWidth = command.style.stroke.width ?? 1;
+  if (node.style.stroke) {
+    ctx.strokeStyle = node.style.stroke.color;
+    ctx.lineWidth = node.style.stroke.width ?? 1;
     ctx.stroke();
   }
 
-  ctx.font = `${command.textStyle.fontWeight ?? "normal"} ${command.textStyle.fontSize}px ${command.textStyle.fontFamily}`;
-  ctx.fillStyle = command.textStyle.fill;
-  ctx.textAlign = command.textStyle.textAlign === "left" || command.textStyle.textAlign === "right"
-    ? command.textStyle.textAlign
+  ctx.font = `${node.textStyle.fontWeight ?? "normal"} ${node.textStyle.fontSize}px ${node.textStyle.fontFamily}`;
+  ctx.fillStyle = node.textStyle.fill;
+  ctx.textAlign = node.textStyle.textAlign === "left" || node.textStyle.textAlign === "right"
+    ? node.textStyle.textAlign
     : "center";
   ctx.textBaseline = "middle";
-  const lines = wrapText(ctx, text, command.width - (command.padding ?? 16) * 2, 3);
-  const lineHeight = command.textStyle.lineHeight
-    ? command.textStyle.fontSize * command.textStyle.lineHeight
-    : command.textStyle.fontSize * 1.2;
-  const centerY = command.y + command.height / 2 - ((lines.length - 1) * lineHeight) / 2;
+  const lines = wrapText(ctx, text, node.width - (node.padding ?? 16) * 2, 3);
+  const lineHeight = node.textStyle.lineHeight
+    ? node.textStyle.fontSize * node.textStyle.lineHeight
+    : node.textStyle.fontSize * 1.2;
+  const centerY = node.y + node.height / 2 - ((lines.length - 1) * lineHeight) / 2;
   const textX =
-    command.textStyle.textAlign === "left"
-      ? command.x + (command.padding ?? 16)
-      : command.textStyle.textAlign === "right"
-        ? command.x + command.width - (command.padding ?? 16)
-        : command.x + command.width / 2;
+    node.textStyle.textAlign === "left"
+      ? node.x + (node.padding ?? 16)
+      : node.textStyle.textAlign === "right"
+        ? node.x + node.width - (node.padding ?? 16)
+        : node.x + node.width / 2;
 
   lines.forEach((line, index) => {
-    ctx.fillText(line, textX, centerY + index * lineHeight, command.width - (command.padding ?? 16) * 2);
+    ctx.fillText(line, textX, centerY + index * lineHeight, node.width - (node.padding ?? 16) * 2);
   });
   ctx.restore();
 }
 
 async function drawImageNode(
   ctx: CanvasRenderingContext2D,
-  preset: PresetDocument,
-  node: Extract<SceneNode, { kind: "image" }>,
+  node: ImageRenderNode,
   inputs: RenderInputs,
   options?: RenderOptions,
 ) {
@@ -582,8 +391,7 @@ async function drawImageNode(
   }
 
   if (!imageUrl) {
-    const input = getInputDefinition(preset, node.source);
-    drawPlaceholderImage(ctx, node.x, node.y, node.width, node.height, input?.label ?? node.source);
+    drawPlaceholderImage(ctx, node.x, node.y, node.width, node.height, node.placeholderLabel);
     ctx.restore();
     return;
   }
@@ -639,25 +447,24 @@ async function drawImageNode(
 
 export async function renderPresetToCanvas(
   canvas: HTMLCanvasElement,
-  preset: PresetDocument,
+  renderModel: RenderModel,
   inputs: RenderInputs,
   overlays: OverlayItem[] = [],
   options?: RenderOptions,
 ) {
-  const scene = buildScene(preset);
-  canvas.width = scene.width;
-  canvas.height = scene.height;
+  canvas.width = renderModel.width;
+  canvas.height = renderModel.height;
 
   const ctx = canvas.getContext("2d");
   if (!ctx) {
     return;
   }
 
-  ctx.clearRect(0, 0, scene.width, scene.height);
-  ctx.fillStyle = scene.backgroundColor;
-  ctx.fillRect(0, 0, scene.width, scene.height);
+  ctx.clearRect(0, 0, renderModel.width, renderModel.height);
+  ctx.fillStyle = renderModel.backgroundColor;
+  ctx.fillRect(0, 0, renderModel.width, renderModel.height);
 
-  for (const node of scene.nodes) {
+  for (const node of renderModel.nodes) {
     if (options?.shouldAbort?.()) {
       return;
     }
@@ -667,27 +474,24 @@ export async function renderPresetToCanvas(
     }
 
     if (node.kind === "shape") {
-      drawShape(ctx, node.command);
+      drawShape(ctx, node);
       continue;
     }
 
     if (node.kind === "text") {
-      if (
-        node.command.source &&
-        options?.hiddenTextInputs?.includes(node.command.source)
-      ) {
+      if (node.source && options?.hiddenTextInputs?.includes(node.source)) {
         continue;
       }
-      drawTextNode(ctx, preset, node.command, inputs);
+      drawTextNode(ctx, node, inputs);
       continue;
     }
 
     if (node.kind === "speechBubble") {
-      drawSpeechBubble(ctx, preset, node.command, inputs);
+      drawSpeechBubble(ctx, node, inputs);
       continue;
     }
 
-    await drawImageNode(ctx, preset, node, inputs, options);
+    await drawImageNode(ctx, node, inputs, options);
   }
 
   await drawOverlays(ctx, overlays, options);
