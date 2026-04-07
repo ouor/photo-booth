@@ -493,20 +493,47 @@ async function drawImageNode(
   }
 
   const image = await loadImage(imageUrl);
-  let dx = node.x;
-  let dy = node.y;
-  let dWidth = node.width;
-  let dHeight = node.height;
+  const centerX = node.x + node.width / 2;
+  const centerY = node.y + node.height / 2;
+  const angleInRadians = ((node.angle ?? 0) * Math.PI) / 180;
+
+  ctx.translate(centerX, centerY);
+  if (angleInRadians !== 0) {
+    ctx.rotate(angleInRadians);
+  }
 
   if (node.fit === "contain") {
     const scale = Math.min(node.width / image.width, node.height / image.height);
-    dWidth = image.width * scale;
-    dHeight = image.height * scale;
-    dx = node.x + (node.width - dWidth) / 2;
-    dy = node.y + (node.height - dHeight) / 2;
+    const drawWidth = image.width * scale;
+    const drawHeight = image.height * scale;
+    ctx.drawImage(image, -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight);
+    ctx.restore();
+    return;
   }
 
-  ctx.drawImage(image, dx, dy, dWidth, dHeight);
+  if (node.fit === "cover") {
+    const scale = Math.max(node.width / image.width, node.height / image.height);
+    const sourceWidth = node.width / scale;
+    const sourceHeight = node.height / scale;
+    const sourceX = Math.max(0, (image.width - sourceWidth) / 2);
+    const sourceY = Math.max(0, (image.height - sourceHeight) / 2);
+
+    ctx.drawImage(
+      image,
+      sourceX,
+      sourceY,
+      sourceWidth,
+      sourceHeight,
+      -node.width / 2,
+      -node.height / 2,
+      node.width,
+      node.height,
+    );
+    ctx.restore();
+    return;
+  }
+
+  ctx.drawImage(image, -node.width / 2, -node.height / 2, node.width, node.height);
   ctx.restore();
 }
 
