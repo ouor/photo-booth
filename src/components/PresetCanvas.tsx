@@ -4,7 +4,6 @@ import {
   useRef,
   useState,
   type CSSProperties,
-  type PointerEvent as ReactPointerEvent,
 } from "react";
 import type { RenderInputs } from "../lib/preset-engine";
 import { renderPresetToCanvas } from "../lib/preset-engine";
@@ -157,7 +156,7 @@ export function PresetCanvas({
   const scaleX = displaySize.width / renderModel.width;
   const scaleY = displaySize.height / renderModel.height;
 
-  function getCanvasPoint(event: ReactPointerEvent<HTMLCanvasElement>) {
+  function getCanvasPointFromClient(clientX: number, clientY: number) {
     const canvas = canvasRef.current;
     if (!canvas) {
       return null;
@@ -167,8 +166,8 @@ export function PresetCanvas({
     const mappedScaleX = canvas.width / rect.width;
     const mappedScaleY = canvas.height / rect.height;
     return {
-      x: (event.clientX - rect.left) * mappedScaleX,
-      y: (event.clientY - rect.top) * mappedScaleY,
+      x: (clientX - rect.left) * mappedScaleX,
+      y: (clientY - rect.top) * mappedScaleY,
     };
   }
 
@@ -231,16 +230,22 @@ export function PresetCanvas({
             <canvas
               ref={canvasRef}
               className={selectedOverlayId ? "preview-canvas interactive" : "preview-canvas"}
-              onPointerDown={(event) => {
-                const point = getCanvasPoint(event);
+            />
+
+            <div
+              className="interaction-layer"
+              onPointerDownCapture={(event) => {
+                const point = getCanvasPointFromClient(event.clientX, event.clientY);
                 if (!point) {
                   return;
                 }
 
                 const overlay = findOverlayAtPoint(overlays, point.x, point.y);
                 if (!overlay) {
-                  onOverlaySelect(null);
-                  dragStateRef.current = null;
+                  if (event.target === event.currentTarget) {
+                    onOverlaySelect(null);
+                    dragStateRef.current = null;
+                  }
                   return;
                 }
 
@@ -251,9 +256,11 @@ export function PresetCanvas({
                   offsetY: point.y - overlay.y,
                 };
                 event.currentTarget.setPointerCapture(event.pointerId);
+                event.preventDefault();
+                event.stopPropagation();
               }}
-              onPointerMove={(event) => {
-                const point = getCanvasPoint(event);
+              onPointerMoveCapture={(event) => {
+                const point = getCanvasPointFromClient(event.clientX, event.clientY);
                 const dragState = dragStateRef.current;
                 if (!point || !dragState) {
                   return;
@@ -264,14 +271,22 @@ export function PresetCanvas({
                   Math.max(0, point.x - dragState.offsetX),
                   Math.max(0, point.y - dragState.offsetY),
                 );
+                event.preventDefault();
+                event.stopPropagation();
               }}
-              onPointerUp={(event) => {
-                dragStateRef.current = null;
-                event.currentTarget.releasePointerCapture(event.pointerId);
-              }}
-            />
+              onPointerUpCapture={(event) => {
+                if (!dragStateRef.current) {
+                  return;
+                }
 
-            <div className="interaction-layer">
+                dragStateRef.current = null;
+                if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+                  event.currentTarget.releasePointerCapture(event.pointerId);
+                }
+                event.preventDefault();
+                event.stopPropagation();
+              }}
+            >
               {imageSlotStyles.map(({ slot, style }) => {
                 const currentValue = inputs[slot.inputName];
                 const hasImage = typeof currentValue === "object" && currentValue?.kind === "image";
