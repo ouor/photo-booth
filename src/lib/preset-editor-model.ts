@@ -25,6 +25,7 @@ export interface EditableTextSlot {
   height: number;
   maxLines?: number;
   style: DrawTextCommand["style"];
+  appearanceScope: "preset" | "adaptive";
 }
 
 export interface PresetEditorModel {
@@ -44,6 +45,14 @@ function estimateTextHeight(command: DrawTextCommand): number {
   const lineHeight = command.style.lineHeight ?? 1.2;
   const maxLines = command.maxLines ?? 1;
   return Math.ceil(fontSize * lineHeight * maxLines + 12);
+}
+
+function resolveTextAppearanceScope(command: DrawTextCommand): "preset" | "adaptive" {
+  if (command.style.stroke || command.style.backgroundColor) {
+    return "preset";
+  }
+
+  return "adaptive";
 }
 
 export function derivePresetEditorModel(preset: PresetDocument): PresetEditorModel {
@@ -87,6 +96,7 @@ export function derivePresetEditorModel(preset: PresetDocument): PresetEditorMod
         height: estimateTextHeight(command),
         maxLines: command.maxLines,
         style: command.style,
+        appearanceScope: resolveTextAppearanceScope(command),
       });
     }
   });

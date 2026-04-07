@@ -39,6 +39,7 @@ export function PresetCanvas({
   const dragStateRef = useRef<{ id: string; offsetX: number; offsetY: number } | null>(null);
   const renderCycleRef = useRef(0);
   const [status, setStatus] = useState("");
+  const [activeTextInput, setActiveTextInput] = useState<string | null>(null);
   const [displaySize, setDisplaySize] = useState({
     width: preset.output.width,
     height: preset.output.height,
@@ -57,7 +58,12 @@ export function PresetCanvas({
     async function renderAndSample() {
       await renderPresetToCanvas(targetCanvas, preset, inputs, overlays, {
         shouldAbort: () => renderCycleRef.current !== currentCycle,
-        hiddenTextInputs: editorModel.textSlots.map((slot) => slot.inputName),
+        hiddenTextInputs: editorModel.textSlots
+          .filter(
+            (slot) =>
+              slot.appearanceScope === "adaptive" || slot.inputName === activeTextInput,
+          )
+          .map((slot) => slot.inputName),
       });
 
       if (renderCycleRef.current !== currentCycle) {
@@ -72,6 +78,14 @@ export function PresetCanvas({
       const nextContrastMap: Record<string, { color: string; textShadow: string }> = {};
 
       editorModel.textSlots.forEach((slot) => {
+        if (slot.appearanceScope === "preset") {
+          nextContrastMap[slot.inputName] = {
+            color: slot.style.fill,
+            textShadow: "none",
+          };
+          return;
+        }
+
         const sampleX = Math.max(0, Math.floor(slot.x));
         const sampleY = Math.max(0, Math.floor(slot.y));
         const sampleWidth = Math.max(1, Math.min(targetCanvas.width - sampleX, Math.floor(slot.width)));
@@ -113,7 +127,7 @@ export function PresetCanvas({
     }
 
     void renderAndSample();
-  }, [editorModel.textSlots, inputs, overlays, preset]);
+  }, [activeTextInput, editorModel.textSlots, inputs, overlays, preset]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -186,13 +200,24 @@ export function PresetCanvas({
           fontSize: `${slot.style.fontSize * scaleY}px`,
           fontWeight: slot.style.fontWeight,
           fontStyle: slot.style.fontStyle,
-          color: textContrastMap[slot.inputName]?.color ?? slot.style.fill,
-          textShadow: textContrastMap[slot.inputName]?.textShadow ?? "none",
+          color:
+            slot.appearanceScope === "preset" && activeTextInput !== slot.inputName
+              ? "transparent"
+              : textContrastMap[slot.inputName]?.color ?? slot.style.fill,
+          textShadow:
+            slot.appearanceScope === "preset" && activeTextInput !== slot.inputName
+              ? "transparent"
+              : textContrastMap[slot.inputName]?.textShadow ?? "none",
+          WebkitTextFillColor:
+            slot.appearanceScope === "preset" && activeTextInput !== slot.inputName
+              ? "transparent"
+              : undefined,
+          caretColor: slot.appearanceScope === "preset" ? slot.style.fill : undefined,
           textAlign: slot.style.textAlign === "right" ? "right" : slot.style.textAlign === "center" ? "center" : "left",
           lineHeight: String(slot.style.lineHeight ?? 1.2),
         } satisfies CSSProperties,
       })),
-    [editorModel.textSlots, scaleX, scaleY, textContrastMap],
+    [activeTextInput, editorModel.textSlots, scaleX, scaleY, textContrastMap],
   );
 
   const exportBounds = useMemo(
@@ -278,10 +303,13 @@ export function PresetCanvas({
                     key={slot.inputName}
                     className="frame-text-input"
                     data-placeholder-tone={contrast.color === "#171717" ? "dark" : "light"}
+                    data-appearance-scope={slot.appearanceScope}
                     style={style}
                     rows={slot.maxLines}
                     value={textValue}
                     placeholder={slot.label}
+                    onFocus={() => setActiveTextInput(slot.inputName)}
+                    onBlur={() => setActiveTextInput((current) => (current === slot.inputName ? null : current))}
                     onChange={(event) => onTextChange(slot.inputName, event.target.value)}
                   />
                 ) : (
@@ -289,10 +317,13 @@ export function PresetCanvas({
                     key={slot.inputName}
                     className="frame-text-input"
                     data-placeholder-tone={contrast.color === "#171717" ? "dark" : "light"}
+                    data-appearance-scope={slot.appearanceScope}
                     style={style}
                     type="text"
                     value={textValue}
                     placeholder={slot.label}
+                    onFocus={() => setActiveTextInput(slot.inputName)}
+                    onBlur={() => setActiveTextInput((current) => (current === slot.inputName ? null : current))}
                     onChange={(event) => onTextChange(slot.inputName, event.target.value)}
                   />
                 );
