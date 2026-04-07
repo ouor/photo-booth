@@ -179,12 +179,48 @@
   resize: vertical;
 }
 
+.image-field-stack {
+  display: grid;
+  gap: 12px;
+}
+
+.inline-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
 .ghost-button {
   padding: 12px 14px;
   border-radius: 14px;
   border: 1px dashed rgba(122, 91, 61, 0.35);
   color: #7f654f;
   background: transparent;
+}
+
+.primary-button {
+  padding: 12px 14px;
+  border: 0;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #8b5e3c, #c18252);
+  color: #fff7f0;
+}
+
+.camera-panel {
+  display: grid;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 18px;
+  background: #f4eadc;
+}
+
+.camera-video {
+  width: 100%;
+  min-height: 180px;
+  border-radius: 14px;
+  background: #241b14;
+  object-fit: cover;
 }
 
 .preview-card {
@@ -219,6 +255,16 @@
 }
 
 .preview-meta span {
+  color: #7f654f;
+}
+
+.preview-actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.export-status {
   color: #7f654f;
 }
 

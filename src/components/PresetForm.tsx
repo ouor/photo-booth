@@ -1,6 +1,6 @@
-import type { ChangeEvent } from "react";
 import type { InputDefinition, PresetDocument, StickerInputDefinition } from "../dsl-schema";
 import type { RenderImageValue, RenderInputs } from "../lib/preset-engine";
+import { ImageInputField } from "./ImageInputField";
 
 interface PresetFormProps {
   preset: PresetDocument;
@@ -30,7 +30,7 @@ function renderHint(input: InputDefinition) {
     case "emoji":
       return `${input.allowed?.length ?? 0} emoji options`;
     case "camera":
-      return "Camera support comes next";
+      return "Camera source";
     default:
       return "";
   }
@@ -56,22 +56,11 @@ export function PresetForm({ preset, values, onChange }: PresetFormProps) {
               {input.description ? <p className="field-copy">{input.description}</p> : null}
 
               {input.type === "image" ? (
-                <>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={(event: ChangeEvent<HTMLInputElement>) => {
-                      const file = event.target.files?.[0];
-                      if (!file) {
-                        onChange(input.name, null);
-                        return;
-                      }
-
-                      onChange(input.name, toImageValue(URL.createObjectURL(file)));
-                    }}
-                  />
-                  <small>{typeof value === "object" && value?.kind === "image" ? "Image selected" : "No image selected"}</small>
-                </>
+                <ImageInputField
+                  input={input}
+                  value={typeof value === "object" && value?.kind === "image" ? value : null}
+                  onChange={(nextValue) => onChange(input.name, nextValue)}
+                />
               ) : null}
 
               {input.type === "text" ? (
@@ -126,9 +115,7 @@ export function PresetForm({ preset, values, onChange }: PresetFormProps) {
               ) : null}
 
               {input.type === "camera" ? (
-                <button type="button" className="ghost-button" disabled>
-                  Enable camera soon
-                </button>
+                <small>Camera-only fields will share this capture flow.</small>
               ) : null}
 
               {input.type === "sticker" && typeof value === "object" && value?.kind === "image" ? (
