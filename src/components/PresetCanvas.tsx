@@ -23,6 +23,7 @@ export function PresetCanvas({
 }: PresetCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const dragStateRef = useRef<{ id: string; offsetX: number; offsetY: number } | null>(null);
+  const renderCycleRef = useRef(0);
   const [status, setStatus] = useState("");
 
   useEffect(() => {
@@ -31,7 +32,12 @@ export function PresetCanvas({
       return;
     }
 
-    void renderPresetToCanvas(canvas, preset, inputs, overlays);
+    const currentCycle = renderCycleRef.current + 1;
+    renderCycleRef.current = currentCycle;
+
+    void renderPresetToCanvas(canvas, preset, inputs, overlays, {
+      shouldAbort: () => renderCycleRef.current !== currentCycle,
+    });
   }, [preset, inputs, overlays]);
 
   function getCanvasPoint(event: ReactPointerEvent<HTMLCanvasElement>) {

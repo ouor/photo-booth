@@ -67,6 +67,10 @@ interface SceneState {
   nodes: SceneNode[];
 }
 
+interface RenderOptions {
+  shouldAbort?: () => boolean;
+}
+
 function loadImage(src: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const image = new Image();
@@ -305,8 +309,12 @@ function drawRoundedRect(
 async function drawOverlayImage(
   ctx: CanvasRenderingContext2D,
   overlay: Extract<OverlayItem, { kind: "sticker" | "badge" }>,
+  options?: RenderOptions,
 ) {
   const image = await loadImage(overlay.assetUrl);
+  if (options?.shouldAbort?.()) {
+    return;
+  }
   ctx.save();
   ctx.translate(overlay.x + overlay.width / 2, overlay.y + overlay.height / 2);
   ctx.rotate((overlay.rotation * Math.PI) / 180);
@@ -365,10 +373,14 @@ function drawOverlaySpeechBubble(
   ctx.restore();
 }
 
-async function drawOverlays(ctx: CanvasRenderingContext2D, overlays: OverlayItem[]) {
+async function drawOverlays(ctx: CanvasRenderingContext2D, overlays: OverlayItem[], options?: RenderOptions) {
   for (const overlay of overlays) {
+    if (options?.shouldAbort?.()) {
+      return;
+    }
+
     if (overlay.kind === "sticker" || overlay.kind === "badge") {
-      await drawOverlayImage(ctx, overlay);
+      await drawOverlayImage(ctx, overlay, options);
       continue;
     }
 
@@ -555,6 +567,7 @@ async function drawImageNode(
   preset: PresetDocument,
   node: Extract<SceneNode, { kind: "image" }>,
   inputs: RenderInputs,
+  options?: RenderOptions,
 ) {
   const imageUrl = resolveImageUrl(node.source, inputs);
 
@@ -575,6 +588,10 @@ async function drawImageNode(
   }
 
   const image = await loadImage(imageUrl);
+  if (options?.shouldAbort?.()) {
+    ctx.restore();
+    return;
+  }
   const centerX = node.x + node.width / 2;
   const centerY = node.y + node.height / 2;
   const angleInRadians = ((node.angle ?? 0) * Math.PI) / 180;
@@ -624,6 +641,7 @@ export async function renderPresetToCanvas(
   preset: PresetDocument,
   inputs: RenderInputs,
   overlays: OverlayItem[] = [],
+  options?: RenderOptions,
 ) {
   const scene = buildScene(preset);
   canvas.width = scene.width;
@@ -639,6 +657,10 @@ export async function renderPresetToCanvas(
   ctx.fillRect(0, 0, scene.width, scene.height);
 
   for (const node of scene.nodes) {
+    if (options?.shouldAbort?.()) {
+      return;
+    }
+
     if (!evaluateVisibleWhen(node.visibleWhen, inputs)) {
       continue;
     }
@@ -658,8 +680,8 @@ export async function renderPresetToCanvas(
       continue;
     }
 
-    await drawImageNode(ctx, preset, node, inputs);
+    await drawImageNode(ctx, preset, node, inputs, options);
   }
 
-  await drawOverlays(ctx, overlays);
+  await drawOverlays(ctx, overlays, options);
 }
