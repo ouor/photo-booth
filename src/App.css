@@ -150,6 +150,10 @@
   border: 1px solid rgba(122, 91, 61, 0.15);
 }
 
+.field-card.compact {
+  padding: 14px;
+}
+
 .field-head {
   display: flex;
   justify-content: space-between;
@@ -247,6 +251,10 @@
   background: white;
 }
 
+.preview-canvas.interactive {
+  cursor: grab;
+}
+
 .preview-meta {
   display: flex;
   justify-content: space-between;
@@ -265,6 +273,48 @@
 }
 
 .export-status {
+  color: #7f654f;
+}
+
+.overlay-panel {
+  display: grid;
+  gap: 18px;
+}
+
+.overlay-asset-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.overlay-asset-card,
+.overlay-row {
+  display: grid;
+  gap: 6px;
+  width: 100%;
+  padding: 14px;
+  text-align: left;
+  border-radius: 18px;
+  border: 1px solid rgba(122, 91, 61, 0.15);
+  background: #fff9f2;
+  color: #2e241b;
+}
+
+.overlay-row.active {
+  border-color: #8b5e3c;
+}
+
+.overlay-list {
+  display: grid;
+  gap: 10px;
+}
+
+.overlay-inspector {
+  display: grid;
+  gap: 12px;
+}
+
+.empty-copy {
   color: #7f654f;
 }
 
@@ -330,5 +380,9 @@
 
   .input-fields {
     grid-template-columns: 1fr;
+  }
+
+  .overlay-asset-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }

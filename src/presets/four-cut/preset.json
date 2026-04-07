@@ -4,7 +4,7 @@
     "id": "four-cut-classic",
     "name": "Four Cut Classic",
     "version": "1.0.0",
-    "description": "Vertical four-cut photo strip with title, footer text, and optional stickers.",
+    "description": "Vertical four-cut photo strip with title and footer text.",
     "tags": ["four-cut", "photo-booth", "strip"]
   },
   "inputs": [
@@ -49,25 +49,6 @@
       "label": "Bottom Caption",
       "maxLength": 28,
       "placeholder": "2026.04.07"
-    },
-    {
-      "name": "accentSticker",
-      "type": "sticker",
-      "label": "Accent Sticker",
-      "required": false,
-      "maxCount": 2,
-      "options": [
-        {
-          "id": "sparkle-white",
-          "label": "Sparkle",
-          "asset": "/stickers/sparkle-white.svg"
-        },
-        {
-          "id": "ribbon-pink",
-          "label": "Ribbon",
-          "asset": "/stickers/ribbon-pink.svg"
-        }
-      ]
     }
   ],
   "output": {
@@ -192,16 +173,6 @@
         "fill": "#2c2c2c",
         "textAlign": "center"
       }
-    },
-    {
-      "op": "drawSticker",
-      "source": "accentSticker",
-      "x": 720,
-      "y": 160,
-      "width": 120,
-      "height": 120,
-      "angle": 10,
-      "visibleWhen": "inputs.accentSticker != null"
     },
     {
       "op": "exportImage",

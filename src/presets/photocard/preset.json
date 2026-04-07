@@ -4,7 +4,7 @@
     "id": "photocard-soft",
     "name": "Photocard Soft",
     "version": "1.0.0",
-    "description": "Rounded photocard layout with profile-style text and optional badge sticker.",
+    "description": "Rounded photocard layout with profile-style text.",
     "tags": ["photocard", "profile", "card"]
   },
   "inputs": [
@@ -29,25 +29,6 @@
       "label": "Subtitle",
       "maxLength": 32,
       "placeholder": "Spring fan meeting"
-    },
-    {
-      "name": "badgeSticker",
-      "type": "sticker",
-      "label": "Badge",
-      "required": false,
-      "maxCount": 1,
-      "options": [
-        {
-          "id": "verified-blue",
-          "label": "Verified",
-          "asset": "/stickers/verified-blue.svg"
-        },
-        {
-          "id": "clover-green",
-          "label": "Clover",
-          "asset": "/stickers/clover-green.svg"
-        }
-      ]
     }
   ],
   "output": {
@@ -125,15 +106,6 @@
         "textAlign": "left",
         "lineHeight": 1.35
       }
-    },
-    {
-      "op": "drawSticker",
-      "source": "badgeSticker",
-      "x": 680,
-      "y": 1050,
-      "width": 96,
-      "height": 96,
-      "visibleWhen": "inputs.badgeSticker != null"
     },
     {
       "op": "exportImage",

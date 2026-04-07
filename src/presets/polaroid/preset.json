@@ -4,7 +4,7 @@
     "id": "polaroid-classic",
     "name": "Polaroid Classic",
     "version": "1.0.0",
-    "description": "Single-photo polaroid preset with caption and decorative sticker.",
+    "description": "Single-photo polaroid preset with caption.",
     "tags": ["polaroid", "retro", "single-photo"]
   },
   "inputs": [
@@ -21,27 +21,6 @@
       "label": "Caption",
       "maxLength": 40,
       "placeholder": "Write a short memory"
-    },
-    {
-      "name": "decorSticker",
-      "type": "sticker",
-      "label": "Sticker",
-      "required": false,
-      "maxCount": 1,
-      "options": [
-        {
-          "id": "star-yellow",
-          "label": "Yellow Star",
-          "asset": "/stickers/star-yellow.svg",
-          "tags": ["cute", "retro"]
-        },
-        {
-          "id": "heart-red",
-          "label": "Red Heart",
-          "asset": "/stickers/heart-red.svg",
-          "tags": ["love", "cute"]
-        }
-      ]
     }
   ],
   "output": {
@@ -110,16 +89,6 @@
         "textAlign": "center",
         "lineHeight": 1.3
       }
-    },
-    {
-      "op": "drawSticker",
-      "source": "decorSticker",
-      "x": 780,
-      "y": 1020,
-      "width": 120,
-      "height": 120,
-      "angle": 8,
-      "visibleWhen": "inputs.decorSticker != null"
     },
     {
       "op": "exportImage",

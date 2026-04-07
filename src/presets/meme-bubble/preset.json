@@ -4,8 +4,8 @@
     "id": "meme-bubble-classic",
     "name": "Meme Bubble Classic",
     "version": "1.0.0",
-    "description": "Meme preset with large headline text, speech bubble caption, and emoji decoration.",
-    "tags": ["meme", "speech-bubble", "caption"]
+    "description": "Meme preset with large headline text over a photo.",
+    "tags": ["meme", "headline", "caption"]
   },
   "inputs": [
     {
@@ -21,22 +21,6 @@
       "required": true,
       "maxLength": 28,
       "placeholder": "When the weekend finally starts"
-    },
-    {
-      "name": "bubbleText",
-      "type": "text",
-      "label": "Speech Bubble",
-      "maxLength": 48,
-      "multiline": true,
-      "placeholder": "I deserve this."
-    },
-    {
-      "name": "reactionEmoji",
-      "type": "emoji",
-      "label": "Reaction Emoji",
-      "required": false,
-      "maxCount": 1,
-      "allowed": ["😂", "🔥", "🥹", "😎"]
     }
   ],
   "output": {
@@ -97,54 +81,6 @@
         "textAlign": "center",
         "lineHeight": 1.1
       }
-    },
-    {
-      "op": "drawSpeechBubble",
-      "source": "bubbleText",
-      "x": 640,
-      "y": 640,
-      "width": 320,
-      "height": 190,
-      "padding": 20,
-      "style": {
-        "fill": "#ffffff",
-        "stroke": {
-          "color": "#111111",
-          "width": 5
-        },
-        "cornerRadius": 28
-      },
-      "textStyle": {
-        "fontFamily": "Pretendard",
-        "fontSize": 32,
-        "fontWeight": "bold",
-        "fill": "#111111",
-        "textAlign": "center",
-        "lineHeight": 1.2
-      },
-      "tail": {
-        "position": "bottom-left",
-        "size": {
-          "width": 40,
-          "height": 28
-        }
-      },
-      "visibleWhen": "inputs.bubbleText != null && inputs.bubbleText != ''"
-    },
-    {
-      "op": "drawText",
-      "source": "reactionEmoji",
-      "x": 860,
-      "y": 880,
-      "width": 140,
-      "maxLines": 1,
-      "style": {
-        "fontFamily": "Apple Color Emoji",
-        "fontSize": 88,
-        "fill": "#ffffff",
-        "textAlign": "center"
-      },
-      "visibleWhen": "inputs.reactionEmoji != null"
     },
     {
       "op": "exportImage",

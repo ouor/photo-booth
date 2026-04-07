@@ -1,14 +1,18 @@
 import { useEffect, useMemo, useState } from "react";
 import "./App.css";
+import { OverlayToolbar } from "./components/OverlayToolbar";
 import { PresetForm } from "./components/PresetForm";
 import type { PresetDocument } from "./dsl-schema";
 import { PresetCanvas } from "./components/PresetCanvas";
 import type { RenderInputs } from "./lib/preset-engine";
+import { createOverlayItem, overlayAssetLibrary, type OverlayItem } from "./lib/overlay-editor";
 import { presetLibrary } from "./lib/preset-library";
 
 function App() {
   const [selectedPresetId, setSelectedPresetId] = useState(presetLibrary[0]?.id ?? "");
   const [renderInputs, setRenderInputs] = useState<RenderInputs>({});
+  const [overlays, setOverlays] = useState<OverlayItem[]>([]);
+  const [selectedOverlayId, setSelectedOverlayId] = useState<string | null>(null);
 
   const selectedPreset = useMemo<PresetDocument | undefined>(
     () => presetLibrary.find((entry) => entry.id === selectedPresetId)?.preset,
@@ -25,6 +29,8 @@ function App() {
       nextValues[input.name] = input.defaultValue ?? null;
     });
     setRenderInputs(nextValues);
+    setOverlays([]);
+    setSelectedOverlayId(null);
   }, [selectedPreset]);
 
   return (
@@ -82,7 +88,38 @@ function App() {
                   }))
                 }
               />
-              <PresetCanvas preset={selectedPreset} inputs={renderInputs} />
+              <OverlayToolbar
+                overlays={overlays}
+                selectedOverlayId={selectedOverlayId}
+                assets={overlayAssetLibrary}
+                onAdd={(asset) => {
+                  const overlay = createOverlayItem(asset);
+                  setOverlays((current) => [...current, overlay]);
+                  setSelectedOverlayId(overlay.id);
+                }}
+                onRemove={(id) => {
+                  setOverlays((current) => current.filter((overlay) => overlay.id !== id));
+                  setSelectedOverlayId((current) => (current === id ? null : current));
+                }}
+                onSelect={setSelectedOverlayId}
+                onChange={(id, updater) =>
+                  setOverlays((current) =>
+                    current.map((overlay) => (overlay.id === id ? updater(overlay) : overlay)),
+                  )
+                }
+              />
+              <PresetCanvas
+                preset={selectedPreset}
+                inputs={renderInputs}
+                overlays={overlays}
+                selectedOverlayId={selectedOverlayId}
+                onOverlaySelect={setSelectedOverlayId}
+                onOverlayMove={(id, x, y) =>
+                  setOverlays((current) =>
+                    current.map((overlay) => (overlay.id === id ? { ...overlay, x, y } : overlay)),
+                  )
+                }
+              />
               <div className="inspector-grid">
                 <div>
                   <h3>{selectedPreset.metadata.name}</h3>

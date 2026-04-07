@@ -6,6 +6,7 @@ import type {
   InputDefinition,
   PresetDocument,
 } from "../dsl-schema";
+import type { OverlayItem } from "./overlay-editor";
 
 type RenderImageValue = {
   kind: "image";
@@ -301,6 +302,87 @@ function drawRoundedRect(
   ctx.roundRect(x, y, width, height, radius);
 }
 
+async function drawOverlayImage(
+  ctx: CanvasRenderingContext2D,
+  overlay: Extract<OverlayItem, { kind: "sticker" | "badge" }>,
+) {
+  const image = await loadImage(overlay.assetUrl);
+  ctx.save();
+  ctx.translate(overlay.x + overlay.width / 2, overlay.y + overlay.height / 2);
+  ctx.rotate((overlay.rotation * Math.PI) / 180);
+  ctx.drawImage(image, -overlay.width / 2, -overlay.height / 2, overlay.width, overlay.height);
+  ctx.restore();
+}
+
+function drawOverlayEmoji(
+  ctx: CanvasRenderingContext2D,
+  overlay: Extract<OverlayItem, { kind: "emoji" }>,
+) {
+  ctx.save();
+  ctx.translate(overlay.x + overlay.width / 2, overlay.y + overlay.height / 2);
+  ctx.rotate((overlay.rotation * Math.PI) / 180);
+  ctx.font = `${Math.round(overlay.height * 0.84)}px "Apple Color Emoji", "Segoe UI Emoji", sans-serif`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(overlay.text || "🔥", 0, 0);
+  ctx.restore();
+}
+
+function drawOverlaySpeechBubble(
+  ctx: CanvasRenderingContext2D,
+  overlay: Extract<OverlayItem, { kind: "speechBubble" }>,
+) {
+  ctx.save();
+  ctx.translate(overlay.x + overlay.width / 2, overlay.y + overlay.height / 2);
+  ctx.rotate((overlay.rotation * Math.PI) / 180);
+  drawRoundedRect(ctx, -overlay.width / 2, -overlay.height / 2, overlay.width, overlay.height, 24);
+  ctx.fillStyle = "#ffffff";
+  ctx.fill();
+  ctx.strokeStyle = "#1f1712";
+  ctx.lineWidth = 4;
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.moveTo(-overlay.width / 2 + 44, overlay.height / 2);
+  ctx.lineTo(-overlay.width / 2 + 88, overlay.height / 2);
+  ctx.lineTo(-overlay.width / 2 + 60, overlay.height / 2 + 28);
+  ctx.closePath();
+  ctx.fillStyle = "#ffffff";
+  ctx.fill();
+  ctx.strokeStyle = "#1f1712";
+  ctx.stroke();
+
+  ctx.fillStyle = "#1f1712";
+  ctx.font = `700 ${Math.max(18, Math.round(overlay.height * 0.2))}px Pretendard, sans-serif`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  const lines = wrapText(ctx, overlay.text || "Say something", overlay.width - 32, 3);
+  const lineHeight = Math.max(18, Math.round(overlay.height * 0.2)) * 1.2;
+  const startY = -((lines.length - 1) * lineHeight) / 2;
+  lines.forEach((line, index) => {
+    ctx.fillText(line, 0, startY + index * lineHeight, overlay.width - 28);
+  });
+  ctx.restore();
+}
+
+async function drawOverlays(ctx: CanvasRenderingContext2D, overlays: OverlayItem[]) {
+  for (const overlay of overlays) {
+    if (overlay.kind === "sticker" || overlay.kind === "badge") {
+      await drawOverlayImage(ctx, overlay);
+      continue;
+    }
+
+    if (overlay.kind === "emoji") {
+      drawOverlayEmoji(ctx, overlay);
+      continue;
+    }
+
+    if (overlay.kind === "speechBubble") {
+      drawOverlaySpeechBubble(ctx, overlay);
+    }
+  }
+}
+
 function drawShape(ctx: CanvasRenderingContext2D, command: DrawShapeCommand) {
   const radius = typeof command.style.cornerRadius === "number" ? command.style.cornerRadius : 0;
   const width = command.width ?? 0;
@@ -541,6 +623,7 @@ export async function renderPresetToCanvas(
   canvas: HTMLCanvasElement,
   preset: PresetDocument,
   inputs: RenderInputs,
+  overlays: OverlayItem[] = [],
 ) {
   const scene = buildScene(preset);
   canvas.width = scene.width;
@@ -577,4 +660,6 @@ export async function renderPresetToCanvas(
 
     await drawImageNode(ctx, preset, node, inputs);
   }
+
+  await drawOverlays(ctx, overlays);
 }
