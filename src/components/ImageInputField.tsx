@@ -21,6 +21,7 @@ export function ImageInputField({ input, value, onChange }: ImageInputFieldProps
   const streamRef = useRef<MediaStream | null>(null);
   const [cameraOpen, setCameraOpen] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
+  const [clipboardStatus, setClipboardStatus] = useState<string | null>(null);
 
   useEffect(() => {
     if (!cameraOpen) {
@@ -68,6 +69,33 @@ export function ImageInputField({ input, value, onChange }: ImageInputFieldProps
     };
   }, [cameraOpen]);
 
+  async function readImageFromClipboard() {
+    if (typeof navigator === "undefined" || !navigator.clipboard?.read) {
+      setClipboardStatus("Clipboard image read is not supported in this browser.");
+      return;
+    }
+
+    try {
+      const clipboardItems = await navigator.clipboard.read();
+
+      for (const item of clipboardItems) {
+        const imageType = item.types.find((type) => type.startsWith("image/"));
+        if (!imageType) {
+          continue;
+        }
+
+        const blob = await item.getType(imageType);
+        onChange(toImageValue(URL.createObjectURL(blob)));
+        setClipboardStatus("Image loaded from clipboard.");
+        return;
+      }
+
+      setClipboardStatus("No image was found in the clipboard.");
+    } catch (error) {
+      setClipboardStatus(error instanceof Error ? error.message : "Clipboard read failed.");
+    }
+  }
+
   return (
     <div className="image-field-stack">
       <input
@@ -91,12 +119,16 @@ export function ImageInputField({ input, value, onChange }: ImageInputFieldProps
         >
           {cameraOpen ? "Close camera" : "Use camera"}
         </button>
+        <button type="button" className="ghost-button" onClick={() => void readImageFromClipboard()}>
+          Read clipboard
+        </button>
         {value ? (
           <small>Image ready</small>
         ) : (
           <small>{input.aspectRatio ? `Aspect ${input.aspectRatio}:1` : "No image selected"}</small>
         )}
       </div>
+      {clipboardStatus ? <small>{clipboardStatus}</small> : null}
 
       {cameraOpen ? (
         <div className="camera-panel">

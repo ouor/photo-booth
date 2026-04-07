@@ -22,7 +22,7 @@ function findStickerOption(input: StickerInputDefinition, assetPath: string) {
 function renderHint(input: InputDefinition) {
   switch (input.type) {
     case "image":
-      return "JPG, PNG, WebP";
+      return "File, camera, clipboard";
     case "text":
       return input.maxLength ? `Max ${input.maxLength} chars` : "Short text";
     case "sticker":
