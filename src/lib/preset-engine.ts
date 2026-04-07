@@ -69,6 +69,7 @@ interface SceneState {
 
 interface RenderOptions {
   shouldAbort?: () => boolean;
+  hiddenTextInputs?: string[];
 }
 
 function loadImage(src: string): Promise<HTMLImageElement> {
@@ -671,6 +672,12 @@ export async function renderPresetToCanvas(
     }
 
     if (node.kind === "text") {
+      if (
+        node.command.source &&
+        options?.hiddenTextInputs?.includes(node.command.source)
+      ) {
+        continue;
+      }
       drawTextNode(ctx, preset, node.command, inputs);
       continue;
     }
