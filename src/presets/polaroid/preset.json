@@ -32,13 +32,13 @@
         {
           "id": "star-yellow",
           "label": "Yellow Star",
-          "asset": "stickers/star-yellow.png",
+          "asset": "/stickers/star-yellow.svg",
           "tags": ["cute", "retro"]
         },
         {
           "id": "heart-red",
           "label": "Red Heart",
-          "asset": "stickers/heart-red.png",
+          "asset": "/stickers/heart-red.svg",
           "tags": ["love", "cute"]
         }
       ]

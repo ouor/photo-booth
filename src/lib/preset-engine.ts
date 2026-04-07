@@ -16,6 +16,8 @@ type RenderTextValue = string;
 
 export type RenderInputValue = RenderImageValue | RenderTextValue | null | undefined;
 
+export type { RenderImageValue };
+
 export type RenderInputs = Record<string, RenderInputValue>;
 
 type SceneNode =

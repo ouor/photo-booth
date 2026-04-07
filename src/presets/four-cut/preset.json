@@ -60,12 +60,12 @@
         {
           "id": "sparkle-white",
           "label": "Sparkle",
-          "asset": "stickers/sparkle-white.png"
+          "asset": "/stickers/sparkle-white.svg"
         },
         {
           "id": "ribbon-pink",
           "label": "Ribbon",
-          "asset": "stickers/ribbon-pink.png"
+          "asset": "/stickers/ribbon-pink.svg"
         }
       ]
     }

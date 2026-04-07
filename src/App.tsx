@@ -1,5 +1,6 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import "./App.css";
+import { PresetForm } from "./components/PresetForm";
 import type { PresetDocument } from "./dsl-schema";
 import { PresetCanvas } from "./components/PresetCanvas";
 import type { RenderInputs } from "./lib/preset-engine";
@@ -7,12 +8,24 @@ import { presetLibrary } from "./lib/preset-library";
 
 function App() {
   const [selectedPresetId, setSelectedPresetId] = useState(presetLibrary[0]?.id ?? "");
-  const [renderInputs] = useState<RenderInputs>({});
+  const [renderInputs, setRenderInputs] = useState<RenderInputs>({});
 
   const selectedPreset = useMemo<PresetDocument | undefined>(
     () => presetLibrary.find((entry) => entry.id === selectedPresetId)?.preset,
     [selectedPresetId],
   );
+
+  useEffect(() => {
+    if (!selectedPreset) {
+      return;
+    }
+
+    const nextValues: RenderInputs = {};
+    selectedPreset.inputs.forEach((input) => {
+      nextValues[input.name] = input.defaultValue ?? null;
+    });
+    setRenderInputs(nextValues);
+  }, [selectedPreset]);
 
   return (
     <main className="app-shell">
@@ -59,6 +72,16 @@ function App() {
           </div>
           {selectedPreset ? (
             <div className="inspector-content">
+              <PresetForm
+                preset={selectedPreset}
+                values={renderInputs}
+                onChange={(name, value) =>
+                  setRenderInputs((current) => ({
+                    ...current,
+                    [name]: value,
+                  }))
+                }
+              />
               <PresetCanvas preset={selectedPreset} inputs={renderInputs} />
               <div className="inspector-grid">
                 <div>

@@ -40,12 +40,12 @@
         {
           "id": "verified-blue",
           "label": "Verified",
-          "asset": "stickers/verified-blue.png"
+          "asset": "/stickers/verified-blue.svg"
         },
         {
           "id": "clover-green",
           "label": "Clover",
-          "asset": "stickers/clover-green.png"
+          "asset": "/stickers/clover-green.svg"
         }
       ]
     }

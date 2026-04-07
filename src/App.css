@@ -129,6 +129,64 @@
   padding: 20px 24px 24px;
 }
 
+.input-panel {
+  display: grid;
+  gap: 18px;
+  padding: 0;
+}
+
+.input-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.field-card {
+  display: grid;
+  gap: 10px;
+  padding: 18px;
+  border-radius: 22px;
+  background: #fff9f2;
+  border: 1px solid rgba(122, 91, 61, 0.15);
+}
+
+.field-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: baseline;
+}
+
+.field-head span,
+.field-card small,
+.field-copy {
+  color: #7f654f;
+}
+
+.field-card input[type="text"],
+.field-card input[type="file"],
+.field-card textarea,
+.field-card select {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(122, 91, 61, 0.22);
+  background: #fffdf9;
+  color: #2e241b;
+}
+
+.field-card textarea {
+  resize: vertical;
+}
+
+.ghost-button {
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px dashed rgba(122, 91, 61, 0.35);
+  color: #7f654f;
+  background: transparent;
+}
+
 .preview-card {
   display: grid;
   gap: 14px;
@@ -221,6 +279,10 @@
   }
 
   .inspector-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .input-fields {
     grid-template-columns: 1fr;
   }
 }
