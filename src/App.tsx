@@ -1,10 +1,13 @@
 import { useMemo, useState } from "react";
 import "./App.css";
 import type { PresetDocument } from "./dsl-schema";
+import { PresetCanvas } from "./components/PresetCanvas";
+import type { RenderInputs } from "./lib/preset-engine";
 import { presetLibrary } from "./lib/preset-library";
 
 function App() {
   const [selectedPresetId, setSelectedPresetId] = useState(presetLibrary[0]?.id ?? "");
+  const [renderInputs] = useState<RenderInputs>({});
 
   const selectedPreset = useMemo<PresetDocument | undefined>(
     () => presetLibrary.find((entry) => entry.id === selectedPresetId)?.preset,
@@ -52,10 +55,11 @@ function App() {
         <section className="inspector-panel">
           <div className="section-heading">
             <h2>Preset Inspector</h2>
-            <span>validated</span>
+            <span>live preview</span>
           </div>
           {selectedPreset ? (
             <div className="inspector-content">
+              <PresetCanvas preset={selectedPreset} inputs={renderInputs} />
               <div className="inspector-grid">
                 <div>
                   <h3>{selectedPreset.metadata.name}</h3>

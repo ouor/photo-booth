@@ -129,6 +129,41 @@
   padding: 20px 24px 24px;
 }
 
+.preview-card {
+  display: grid;
+  gap: 14px;
+}
+
+.preview-surface {
+  display: grid;
+  place-items: center;
+  min-height: 420px;
+  padding: 24px;
+  border-radius: 24px;
+  background:
+    linear-gradient(135deg, rgba(255, 253, 248, 0.94), rgba(244, 235, 222, 0.94));
+  border: 1px solid rgba(122, 91, 61, 0.12);
+}
+
+.preview-canvas {
+  max-width: 100%;
+  max-height: 560px;
+  border-radius: 18px;
+  box-shadow: 0 24px 44px rgba(46, 36, 27, 0.18);
+  background: white;
+}
+
+.preview-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+}
+
+.preview-meta span {
+  color: #7f654f;
+}
+
 .inspector-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 260px;
