@@ -1,0 +1,155 @@
+{
+  "schemaVersion": "1.0.0",
+  "metadata": {
+    "id": "meme-bubble-classic",
+    "name": "Meme Bubble Classic",
+    "version": "1.0.0",
+    "description": "Meme preset with large headline text, speech bubble caption, and emoji decoration.",
+    "tags": ["meme", "speech-bubble", "caption"]
+  },
+  "inputs": [
+    {
+      "name": "photo",
+      "type": "image",
+      "label": "Background Photo",
+      "required": true
+    },
+    {
+      "name": "headline",
+      "type": "text",
+      "label": "Headline",
+      "required": true,
+      "maxLength": 28,
+      "placeholder": "When the weekend finally starts"
+    },
+    {
+      "name": "bubbleText",
+      "type": "text",
+      "label": "Speech Bubble",
+      "maxLength": 48,
+      "multiline": true,
+      "placeholder": "I deserve this."
+    },
+    {
+      "name": "reactionEmoji",
+      "type": "emoji",
+      "label": "Reaction Emoji",
+      "required": false,
+      "maxCount": 1,
+      "allowed": ["😂", "🔥", "🥹", "😎"]
+    }
+  ],
+  "output": {
+    "width": 1080,
+    "height": 1080,
+    "format": "image/png",
+    "backgroundColor": "#000000"
+  },
+  "commands": [
+    {
+      "op": "createCanvas",
+      "id": "canvas",
+      "width": 1080,
+      "height": 1080,
+      "backgroundColor": "#000000"
+    },
+    {
+      "op": "placeImage",
+      "id": "meme-photo",
+      "source": "photo",
+      "x": 0,
+      "y": 0,
+      "width": 1080,
+      "height": 1080,
+      "fit": "cover"
+    },
+    {
+      "op": "applyFilter",
+      "target": "meme-photo",
+      "filters": [
+        {
+          "type": "contrast",
+          "amount": 0.18
+        },
+        {
+          "type": "brightness",
+          "amount": 0.06
+        }
+      ]
+    },
+    {
+      "op": "drawText",
+      "source": "headline",
+      "x": 70,
+      "y": 60,
+      "width": 940,
+      "maxLines": 2,
+      "ellipsis": true,
+      "style": {
+        "fontFamily": "Impact",
+        "fontSize": 76,
+        "fontWeight": "bold",
+        "fill": "#ffffff",
+        "stroke": {
+          "color": "#111111",
+          "width": 6
+        },
+        "textAlign": "center",
+        "lineHeight": 1.1
+      }
+    },
+    {
+      "op": "drawSpeechBubble",
+      "source": "bubbleText",
+      "x": 640,
+      "y": 640,
+      "width": 320,
+      "height": 190,
+      "padding": 20,
+      "style": {
+        "fill": "#ffffff",
+        "stroke": {
+          "color": "#111111",
+          "width": 5
+        },
+        "cornerRadius": 28
+      },
+      "textStyle": {
+        "fontFamily": "Pretendard",
+        "fontSize": 32,
+        "fontWeight": "bold",
+        "fill": "#111111",
+        "textAlign": "center",
+        "lineHeight": 1.2
+      },
+      "tail": {
+        "position": "bottom-left",
+        "size": {
+          "width": 40,
+          "height": 28
+        }
+      },
+      "visibleWhen": "inputs.bubbleText != null && inputs.bubbleText != ''"
+    },
+    {
+      "op": "drawText",
+      "source": "reactionEmoji",
+      "x": 860,
+      "y": 880,
+      "width": 140,
+      "maxLines": 1,
+      "style": {
+        "fontFamily": "Apple Color Emoji",
+        "fontSize": 88,
+        "fill": "#ffffff",
+        "textAlign": "center"
+      },
+      "visibleWhen": "inputs.reactionEmoji != null"
+    },
+    {
+      "op": "exportImage",
+      "format": "image/png",
+      "filename": "meme-bubble-classic.png"
+    }
+  ]
+}
