@@ -10,7 +10,7 @@ import type { PresetDocument } from "../dsl-schema";
 import type { RenderInputs } from "../lib/preset-engine";
 import { renderPresetToCanvas } from "../lib/preset-engine";
 import { findOverlayAtPoint, type OverlayItem } from "../lib/overlay-editor";
-import type { PresetEditorModel } from "../lib/preset-editor-model";
+import { deriveExportBounds, type PresetEditorModel } from "../lib/preset-editor-model";
 
 interface PresetCanvasProps {
   preset: PresetDocument;
@@ -195,6 +195,11 @@ export function PresetCanvas({
     [editorModel.textSlots, scaleX, scaleY, textContrastMap],
   );
 
+  const exportBounds = useMemo(
+    () => deriveExportBounds(preset, editorModel, overlays),
+    [editorModel, overlays, preset],
+  );
+
   return (
     <section className="editor-stage">
       <div className="preview-card">
@@ -302,13 +307,38 @@ export function PresetCanvas({
             <button
               type="button"
               className="primary-button"
-              onClick={() => {
+              onClick={async () => {
                 const canvas = canvasRef.current;
                 if (!canvas) {
                   return;
                 }
 
-                canvas.toBlob((blob) => {
+                const exportCanvas = document.createElement("canvas");
+                await renderPresetToCanvas(exportCanvas, preset, inputs, overlays);
+
+                const croppedCanvas = document.createElement("canvas");
+                croppedCanvas.width = exportBounds.width;
+                croppedCanvas.height = exportBounds.height;
+
+                const croppedContext = croppedCanvas.getContext("2d");
+                if (!croppedContext) {
+                  setStatus("Export failed");
+                  return;
+                }
+
+                croppedContext.drawImage(
+                  exportCanvas,
+                  exportBounds.x,
+                  exportBounds.y,
+                  exportBounds.width,
+                  exportBounds.height,
+                  0,
+                  0,
+                  exportBounds.width,
+                  exportBounds.height,
+                );
+
+                croppedCanvas.toBlob((blob) => {
                   if (!blob) {
                     setStatus("Export failed");
                     return;

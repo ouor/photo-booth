@@ -1,9 +1,11 @@
 import type {
+  Command,
   DrawTextCommand,
   ImageInputDefinition,
   PresetDocument,
   TextInputDefinition,
 } from "../dsl-schema";
+import type { OverlayItem } from "./overlay-editor";
 
 export interface EditableImageSlot {
   inputName: string;
@@ -28,6 +30,13 @@ export interface EditableTextSlot {
 export interface PresetEditorModel {
   imageSlots: EditableImageSlot[];
   textSlots: EditableTextSlot[];
+}
+
+export interface ExportBounds {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
 }
 
 function estimateTextHeight(command: DrawTextCommand): number {
@@ -85,5 +94,90 @@ export function derivePresetEditorModel(preset: PresetDocument): PresetEditorMod
   return {
     imageSlots,
     textSlots,
+  };
+}
+
+function getCommandBounds(command: Command, textSlots: EditableTextSlot[]): ExportBounds | null {
+  switch (command.op) {
+    case "drawShape":
+    case "placeImage":
+    case "drawFrame":
+    case "drawSticker":
+    case "drawSpeechBubble":
+      return {
+        x: command.x,
+        y: command.y,
+        width: command.width ?? 0,
+        height: command.height ?? 0,
+      };
+    case "drawText": {
+      if (!command.source) {
+        return {
+          x: command.x,
+          y: command.y,
+          width: command.width,
+          height: estimateTextHeight(command),
+        };
+      }
+
+      const matchingSlot = textSlots.find((slot) => slot.inputName === command.source);
+      return {
+        x: command.x,
+        y: command.y,
+        width: command.width,
+        height: matchingSlot?.height ?? estimateTextHeight(command),
+      };
+    }
+    default:
+      return null;
+  }
+}
+
+function getOverlayBounds(overlay: OverlayItem): ExportBounds {
+  return {
+    x: overlay.x,
+    y: overlay.y,
+    width: overlay.width,
+    height: overlay.height,
+  };
+}
+
+export function deriveExportBounds(
+  preset: PresetDocument,
+  editorModel: PresetEditorModel,
+  overlays: OverlayItem[],
+): ExportBounds {
+  const allBounds = [
+    ...preset.commands
+      .map((command) => getCommandBounds(command, editorModel.textSlots))
+      .filter((bounds): bounds is ExportBounds => bounds !== null),
+    ...overlays.map(getOverlayBounds),
+  ];
+
+  if (allBounds.length === 0) {
+    return {
+      x: 0,
+      y: 0,
+      width: preset.output.width,
+      height: preset.output.height,
+    };
+  }
+
+  const minX = Math.max(0, Math.min(...allBounds.map((bounds) => bounds.x)));
+  const minY = Math.max(0, Math.min(...allBounds.map((bounds) => bounds.y)));
+  const maxX = Math.min(
+    preset.output.width,
+    Math.max(...allBounds.map((bounds) => bounds.x + bounds.width)),
+  );
+  const maxY = Math.min(
+    preset.output.height,
+    Math.max(...allBounds.map((bounds) => bounds.y + bounds.height)),
+  );
+
+  return {
+    x: Math.floor(minX),
+    y: Math.floor(minY),
+    width: Math.ceil(maxX - minX),
+    height: Math.ceil(maxY - minY),
   };
 }
