@@ -10,6 +10,7 @@ interface ImageSourceOverlayProps {
 }
 
 type OverlayMode = "chooser" | "camera";
+type CameraFacingMode = "user" | "environment";
 
 export function ImageSourceOverlay({
   open,
@@ -24,6 +25,7 @@ export function ImageSourceOverlay({
   const captureCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const [mode, setMode] = useState<OverlayMode>("chooser");
+  const [cameraFacingMode, setCameraFacingMode] = useState<CameraFacingMode>("environment");
   const [status, setStatus] = useState("");
 
   useEffect(() => {
@@ -41,7 +43,7 @@ export function ImageSourceOverlay({
     async function startCamera() {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: "environment" },
+          video: { facingMode: cameraFacingMode },
           audio: false,
         });
 
@@ -55,7 +57,11 @@ export function ImageSourceOverlay({
           videoRef.current.srcObject = stream;
           await videoRef.current.play();
         }
-        setStatus("Preview is live. Tap again to capture.");
+        setStatus(
+          cameraFacingMode === "user"
+            ? "Front camera live. Tap again to capture."
+            : "Rear camera live. Tap again to capture.",
+        );
       } catch (error) {
         setStatus(error instanceof Error ? error.message : "Camera unavailable.");
       }
@@ -68,11 +74,12 @@ export function ImageSourceOverlay({
       streamRef.current?.getTracks().forEach((track) => track.stop());
       streamRef.current = null;
     };
-  }, [open, mode]);
+  }, [cameraFacingMode, open, mode]);
 
   useEffect(() => {
     if (!open) {
       setMode("chooser");
+      setCameraFacingMode("environment");
       setStatus("");
     }
   }, [open]);
@@ -189,6 +196,19 @@ export function ImageSourceOverlay({
             </button>
             <canvas ref={captureCanvasRef} hidden />
             <div className="inline-actions">
+              <button
+                type="button"
+                className="ghost-button"
+                onClick={() =>
+                  setCameraFacingMode((current) =>
+                    current === "environment" ? "user" : "environment",
+                  )
+                }
+              >
+                {cameraFacingMode === "environment"
+                  ? "Switch to front camera"
+                  : "Switch to rear camera"}
+              </button>
               <button type="button" className="ghost-button" onClick={() => setMode("chooser")}>
                 Back
               </button>
