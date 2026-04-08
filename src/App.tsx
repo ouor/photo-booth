@@ -98,7 +98,14 @@ function App() {
         ) : null}
       </section>
 
-      <aside className={menuOpen ? "side-menu open" : "side-menu"}>
+      <aside
+        className={menuOpen ? "side-menu open" : "side-menu"}
+        onClick={(event) => {
+          if (event.target === event.currentTarget) {
+            setMenuOpen(false);
+          }
+        }}
+      >
         <div className="side-menu-inner">
           <div className="side-menu-head">
             <div>

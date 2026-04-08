@@ -108,7 +108,16 @@ export function ImageSourceOverlay({
   }
 
   return (
-    <div className="glass-overlay" role="dialog" aria-modal="true">
+    <div
+      className="glass-overlay"
+      role="dialog"
+      aria-modal="true"
+      onClick={(event) => {
+        if (event.target === event.currentTarget) {
+          onClose();
+        }
+      }}
+    >
       <div className="glass-card">
         <div className="glass-head">
           <div>
