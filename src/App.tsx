@@ -1,30 +1,27 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import "./App.css";
 import menuHamburgerIcon from "./assets/menu-hamburger.svg";
 import { ImageSourceOverlay } from "./components/ImageSourceOverlay";
 import { OverlayToolbar } from "./components/OverlayToolbar";
 import { PresetCanvas } from "./components/PresetCanvas";
-import type { RenderInputs } from "./lib/preset-engine";
 import {
-  createOverlayItem,
   overlayAssetLibrary,
-  type OverlayItem,
 } from "./lib/overlay-editor";
+import { useEditorSession } from "./lib/editor-session";
+import { exportPresetImage } from "./lib/export";
 import { compileExportModel, compilePreset } from "./lib/preset-compiler";
 import { presetLibrary } from "./lib/preset-library";
+import { useState } from "react";
 
 function App() {
   const [selectedPresetId, setSelectedPresetId] = useState(presetLibrary[0]?.id ?? "");
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [renderInputs, setRenderInputs] = useState<RenderInputs>({});
-  const [overlays, setOverlays] = useState<OverlayItem[]>([]);
-  const [selectedOverlayId, setSelectedOverlayId] = useState<string | null>(null);
-  const [activeImageSlot, setActiveImageSlot] = useState<string | null>(null);
 
   const selectedPreset = useMemo(
     () => presetLibrary.find((entry) => entry.id === selectedPresetId)?.preset,
     [selectedPresetId],
   );
+  const { session, setMenuOpen, setRenderInput, addOverlay, removeOverlay, updateOverlay, setSelectedOverlayId, setActiveImageSlot } =
+    useEditorSession(selectedPreset?.inputs ?? []);
 
   const compiledPreset = useMemo(
     () => (selectedPreset ? compilePreset(selectedPreset) : null),
@@ -34,38 +31,22 @@ function App() {
   const exportModel = useMemo(
     () =>
       compiledPreset
-        ? compileExportModel(compiledPreset.renderModel, compiledPreset.editorModel, overlays)
+        ? compileExportModel(compiledPreset.renderModel, compiledPreset.editorModel, session.overlays)
         : null,
-    [compiledPreset, overlays],
+    [compiledPreset, session.overlays],
   );
 
-  useEffect(() => {
-    if (!selectedPreset) {
-      return;
-    }
-
-    const nextValues: RenderInputs = {};
-    selectedPreset.inputs.forEach((input) => {
-      nextValues[input.name] = input.defaultValue ?? "";
-    });
-    setRenderInputs(nextValues);
-    setOverlays([]);
-    setSelectedOverlayId(null);
-    setActiveImageSlot(null);
-    setMenuOpen(false);
-  }, [selectedPreset]);
-
   const activeImageLabel =
-    compiledPreset?.editorModel.imageSlots.find((slot) => slot.inputName === activeImageSlot)?.label ??
+    compiledPreset?.editorModel.imageSlots.find((slot) => slot.inputName === session.activeImageSlot)?.label ??
     "Image";
-  const activeImageValue = activeImageSlot ? renderInputs[activeImageSlot] : null;
+  const activeImageValue = session.activeImageSlot ? session.renderInputs[session.activeImageSlot] : null;
 
   return (
     <main className="app-shell cinematic">
       <button
         type="button"
         className="icon-button menu-trigger"
-        onClick={() => setMenuOpen((current) => !current)}
+        onClick={() => setMenuOpen(!session.menuOpen)}
         aria-label="Open editor menu"
       >
         <img src={menuHamburgerIcon} alt="" aria-hidden="true" className="menu-trigger-icon" />
@@ -77,29 +58,28 @@ function App() {
             metadata={compiledPreset.metadata}
             renderModel={compiledPreset.renderModel}
             editorModel={compiledPreset.editorModel}
-            exportModel={exportModel}
-            inputs={renderInputs}
-            overlays={overlays}
-            selectedOverlayId={selectedOverlayId}
+            inputs={session.renderInputs}
+            overlays={session.overlays}
+            selectedOverlayId={session.selectedOverlayId}
             onOverlaySelect={setSelectedOverlayId}
-            onOverlayMove={(id, x, y) =>
-              setOverlays((current) =>
-                current.map((overlay) => (overlay.id === id ? { ...overlay, x, y } : overlay)),
-              )
-            }
-            onTextChange={(name, value) =>
-              setRenderInputs((current) => ({
-                ...current,
-                [name]: value,
-              }))
-            }
+            onOverlayMove={(id, x, y) => updateOverlay(id, (overlay) => ({ ...overlay, x, y }))}
+            onTextChange={setRenderInput}
             onImageSlotOpen={setActiveImageSlot}
+            onSaveImage={() =>
+              exportPresetImage({
+                renderModel: compiledPreset.renderModel,
+                exportModel,
+                inputs: session.renderInputs,
+                overlays: session.overlays,
+                filename: `${compiledPreset.metadata.id}.png`,
+              })
+            }
           />
         ) : null}
       </section>
 
       <aside
-        className={menuOpen ? "side-menu open" : "side-menu"}
+        className={session.menuOpen ? "side-menu open" : "side-menu"}
         onClick={(event) => {
           if (event.target === event.currentTarget) {
             setMenuOpen(false);
@@ -138,55 +118,38 @@ function App() {
           </section>
 
           <OverlayToolbar
-            overlays={overlays}
-            selectedOverlayId={selectedOverlayId}
+            overlays={session.overlays}
+            selectedOverlayId={session.selectedOverlayId}
             assets={overlayAssetLibrary}
-            onAdd={(asset) => {
-              const overlay = createOverlayItem(asset);
-              setOverlays((current) => [...current, overlay]);
-              setSelectedOverlayId(overlay.id);
-            }}
-            onRemove={(id) => {
-              setOverlays((current) => current.filter((overlay) => overlay.id !== id));
-              setSelectedOverlayId((current) => (current === id ? null : current));
-            }}
+            onAdd={addOverlay}
+            onRemove={removeOverlay}
             onSelect={setSelectedOverlayId}
-            onChange={(id, updater) =>
-              setOverlays((current) =>
-                current.map((overlay) => (overlay.id === id ? updater(overlay) : overlay)),
-              )
-            }
+            onChange={updateOverlay}
           />
         </div>
       </aside>
 
       <ImageSourceOverlay
-        open={activeImageSlot !== null}
+        open={session.activeImageSlot !== null}
         label={activeImageLabel}
         hasValue={typeof activeImageValue === "object" && activeImageValue?.kind === "image"}
         onClose={() => setActiveImageSlot(null)}
         onClear={() => {
-          if (!activeImageSlot) {
+          if (!session.activeImageSlot) {
             return;
           }
 
-          setRenderInputs((current) => ({
-            ...current,
-            [activeImageSlot]: null,
-          }));
+          setRenderInput(session.activeImageSlot, null);
         }}
         onImageSelected={(dataUrl) => {
-          if (!activeImageSlot) {
+          if (!session.activeImageSlot) {
             return;
           }
 
-          setRenderInputs((current) => ({
-            ...current,
-            [activeImageSlot]: {
-              kind: "image",
-              url: dataUrl,
-            },
-          }));
+          setRenderInput(session.activeImageSlot, {
+            kind: "image",
+            url: dataUrl,
+          });
         }}
       />
     </main>
