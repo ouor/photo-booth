@@ -95,11 +95,15 @@ export function getOverlayBounds(overlay: OverlayItem) {
   };
 }
 
+export function containsOverlayPoint(overlay: OverlayItem, x: number, y: number) {
+  const bounds = getOverlayBounds(overlay);
+  return x >= bounds.left && x <= bounds.right && y >= bounds.top && y <= bounds.bottom;
+}
+
 export function findOverlayAtPoint(overlays: OverlayItem[], x: number, y: number): OverlayItem | undefined {
   for (let index = overlays.length - 1; index >= 0; index -= 1) {
     const overlay = overlays[index];
-    const bounds = getOverlayBounds(overlay);
-    if (x >= bounds.left && x <= bounds.right && y >= bounds.top && y <= bounds.bottom) {
+    if (containsOverlayPoint(overlay, x, y)) {
       return overlay;
     }
   }
