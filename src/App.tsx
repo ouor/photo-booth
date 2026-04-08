@@ -13,6 +13,14 @@ import { compileExportModel, compilePreset } from "./lib/preset-compiler";
 import { presetLibrary } from "./lib/preset-library";
 import { useState } from "react";
 
+function shouldAutoCloseMenuOnMobile() {
+  if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
+    return false;
+  }
+
+  return window.matchMedia("(max-width: 760px)").matches;
+}
+
 function App() {
   const [selectedPresetId, setSelectedPresetId] = useState(presetLibrary[0]?.id ?? "");
 
@@ -121,7 +129,12 @@ function App() {
             overlays={session.overlays}
             selectedOverlayId={session.selectedOverlayId}
             assets={overlayAssetLibrary}
-            onAdd={addOverlay}
+            onAdd={(asset) => {
+              addOverlay(asset);
+              if (shouldAutoCloseMenuOnMobile()) {
+                setMenuOpen(false);
+              }
+            }}
             onRemove={removeOverlay}
             onSelect={setSelectedOverlayId}
             onChange={updateOverlay}

@@ -16,6 +16,19 @@ export function useOverlayInteraction({
   onOverlayMove,
 }: UseOverlayInteractionOptions) {
   const dragStateRef = useRef<{ id: string; offsetX: number; offsetY: number } | null>(null);
+  const frameRef = useRef<number | null>(null);
+  const pendingPositionRef = useRef<{ id: string; x: number; y: number } | null>(null);
+
+  function flushPendingMove() {
+    frameRef.current = null;
+    const pending = pendingPositionRef.current;
+    if (!pending) {
+      return;
+    }
+
+    pendingPositionRef.current = null;
+    onOverlayMove(pending.id, pending.x, pending.y);
+  }
 
   function getCanvasPointFromClient(clientX: number, clientY: number) {
     const canvas = canvasRef.current;
@@ -65,11 +78,14 @@ export function useOverlayInteraction({
         return;
       }
 
-      onOverlayMove(
-        dragState.id,
-        Math.max(0, point.x - dragState.offsetX),
-        Math.max(0, point.y - dragState.offsetY),
-      );
+      pendingPositionRef.current = {
+        id: dragState.id,
+        x: Math.max(0, point.x - dragState.offsetX),
+        y: Math.max(0, point.y - dragState.offsetY),
+      };
+      if (frameRef.current === null) {
+        frameRef.current = requestAnimationFrame(flushPendingMove);
+      }
       event.preventDefault();
       event.stopPropagation();
     },
@@ -78,12 +94,27 @@ export function useOverlayInteraction({
         return;
       }
 
+      if (frameRef.current !== null) {
+        cancelAnimationFrame(frameRef.current);
+        flushPendingMove();
+      }
       dragStateRef.current = null;
       if (event.currentTarget.hasPointerCapture(event.pointerId)) {
         event.currentTarget.releasePointerCapture(event.pointerId);
       }
       event.preventDefault();
       event.stopPropagation();
+    },
+    onPointerCancelCapture: (event: ReactPointerEvent<HTMLDivElement>) => {
+      if (frameRef.current !== null) {
+        cancelAnimationFrame(frameRef.current);
+        frameRef.current = null;
+      }
+      pendingPositionRef.current = null;
+      dragStateRef.current = null;
+      if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+        event.currentTarget.releasePointerCapture(event.pointerId);
+      }
     },
   };
 }

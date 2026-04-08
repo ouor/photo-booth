@@ -174,6 +174,7 @@ export function PresetCanvas({
               onPointerDownCapture={overlayInteraction.onPointerDownCapture}
               onPointerMoveCapture={overlayInteraction.onPointerMoveCapture}
               onPointerUpCapture={overlayInteraction.onPointerUpCapture}
+              onPointerCancelCapture={overlayInteraction.onPointerCancelCapture}
             >
               {imageSlotStyles.map(({ slot, style }) => {
                 const currentValue = inputs[slot.inputName];
