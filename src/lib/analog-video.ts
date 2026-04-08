@@ -89,6 +89,26 @@ function applyWaveDistortion(source: HTMLCanvasElement, settings: AnalogVideoSet
       Math.sin(y * settings.waveFrequency) * settings.waveAmplitudePx +
       Math.sin(y * settings.waveFrequency * 0.37 + 0.8) * settings.waveAmplitudePx * 0.35;
     ctx.drawImage(source, 0, y, canvas.width, 1, offset, y, canvas.width, 1);
+
+    if (offset > 0) {
+      ctx.drawImage(source, 0, y, 1, 1, 0, y, offset, 1);
+      continue;
+    }
+
+    if (offset < 0) {
+      const fillWidth = Math.abs(offset);
+      ctx.drawImage(
+        source,
+        canvas.width - 1,
+        y,
+        1,
+        1,
+        canvas.width - fillWidth,
+        y,
+        fillWidth,
+        1,
+      );
+    }
   }
 
   return canvas;
