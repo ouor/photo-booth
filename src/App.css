@@ -351,6 +351,11 @@
   color: #d3c3b3;
 }
 
+.overlay-asset-card strong,
+.overlay-asset-card span {
+  display: block;
+}
+
 .overlay-asset-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
