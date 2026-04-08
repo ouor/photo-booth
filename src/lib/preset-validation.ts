@@ -18,6 +18,7 @@ const commandOps = new Set<Command["op"]>([
   "drawSpeechBubble",
   "transform",
   "applyFilter",
+  "applyAnalogVideo",
   "setOpacity",
   "setBlendMode",
   "group",

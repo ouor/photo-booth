@@ -1,6 +1,7 @@
 import type { InputDefinition, PresetDocument } from "../../dsl-schema";
 import type { OverlayItem } from "../overlay-editor";
 import type {
+  AnalogVideoEffectNode,
   CompiledPreset,
   EditorModel,
   EditorTextSlot,
@@ -32,6 +33,7 @@ function compileRenderModel(preset: PresetDocument): RenderModel {
     preset.inputs.map((input) => [input.name, input]),
   );
   const nodes: RenderNode[] = [];
+  const effects: AnalogVideoEffectNode[] = [];
   const imageNodes = new Map<string, ImageRenderNode>();
 
   let width = preset.output.width;
@@ -145,6 +147,13 @@ function compileRenderModel(preset: PresetDocument): RenderModel {
         });
         break;
       }
+      case "applyAnalogVideo":
+        effects.push({
+          kind: "analogVideo",
+          preset: command.preset,
+          intensity: command.intensity ?? 1,
+        });
+        break;
       case "drawSpeechBubble": {
         const input = command.source ? inputByName.get(command.source) : undefined;
         nodes.push({
@@ -193,6 +202,7 @@ function compileRenderModel(preset: PresetDocument): RenderModel {
     format: preset.output.format,
     backgroundColor,
     nodes,
+    effects,
   };
 }
 

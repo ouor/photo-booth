@@ -92,6 +92,13 @@ export interface RenderModel {
   format: "image/png" | "image/jpeg" | "image/webp";
   backgroundColor: string;
   nodes: RenderNode[];
+  effects: AnalogVideoEffectNode[];
+}
+
+export interface AnalogVideoEffectNode {
+  kind: "analogVideo";
+  preset: "ntsc-clean" | "vhs-home-video" | "vhs-damaged-tape";
+  intensity: number;
 }
 
 export interface EditorImageSlot {

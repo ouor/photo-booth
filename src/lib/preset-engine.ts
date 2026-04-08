@@ -1,4 +1,5 @@
 import type { OverlayItem } from "./overlay-editor";
+import { applyAnalogVideoEffects } from "./analog-video";
 import type {
   ImageRenderNode,
   RenderModel,
@@ -495,4 +496,5 @@ export async function renderPresetToCanvas(
   }
 
   await drawOverlays(ctx, overlays, options);
+  applyAnalogVideoEffects(canvas, renderModel.effects);
 }

@@ -180,6 +180,12 @@ export interface ApplyFilterCommand extends BaseCommand {
   filters: FilterDefinition[];
 }
 
+export interface ApplyAnalogVideoCommand extends BaseCommand {
+  op: "applyAnalogVideo";
+  preset: "ntsc-clean" | "vhs-home-video" | "vhs-damaged-tape";
+  intensity?: number;
+}
+
 export interface SetOpacityCommand extends BaseCommand {
   op: "setOpacity";
   target: string;
@@ -245,6 +251,7 @@ export type Command =
   | DrawSpeechBubbleCommand
   | TransformCommand
   | ApplyFilterCommand
+  | ApplyAnalogVideoCommand
   | SetOpacityCommand
   | SetBlendModeCommand
   | GroupCommand
