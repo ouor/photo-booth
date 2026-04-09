@@ -43,6 +43,7 @@ export interface UserPreset {
 const WORKS_KEY = 'photo-booth-works'
 const STICKERS_KEY = 'photo-booth-stickers'
 const USER_PRESETS_KEY = 'photo-booth-user-presets'
+const SAVED_PRESETS_KEY = 'photo-booth-saved-presets'
 
 // Works
 export function getSavedWorks(): SavedWork[] {
@@ -120,4 +121,20 @@ export function saveUserPreset(preset: UserPreset): void {
 export function deleteUserPreset(id: string): void {
   const presets = getUserPresets().filter(p => p.id !== id)
   localStorage.setItem(USER_PRESETS_KEY, JSON.stringify(presets))
+}
+
+// Saved preset ids
+export function getSavedPresets(): string[] {
+  if (typeof window === 'undefined') return []
+  const stored = localStorage.getItem(SAVED_PRESETS_KEY)
+  return stored ? JSON.parse(stored) : []
+}
+
+export function toggleSavePreset(id: string): void {
+  const savedPresets = getSavedPresets()
+  const next = savedPresets.includes(id)
+    ? savedPresets.filter((presetId) => presetId !== id)
+    : [...savedPresets, id]
+
+  localStorage.setItem(SAVED_PRESETS_KEY, JSON.stringify(next))
 }

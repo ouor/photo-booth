@@ -1,0 +1,99 @@
+{
+  "schemaVersion": "1.0.0",
+  "metadata": {
+    "id": "polaroid-classic",
+    "name": "Polaroid Classic",
+    "version": "1.0.0",
+    "description": "Single-photo polaroid preset with caption.",
+    "tags": ["polaroid", "retro", "single-photo"]
+  },
+  "inputs": [
+    {
+      "name": "photo",
+      "type": "image",
+      "label": "Main Photo",
+      "required": true,
+      "aspectRatio": 1
+    },
+    {
+      "name": "caption",
+      "type": "text",
+      "label": "Caption",
+      "maxLength": 40,
+      "placeholder": "Write a short memory"
+    }
+  ],
+  "output": {
+    "width": 1080,
+    "height": 1350,
+    "format": "image/png",
+    "backgroundColor": "#ece4db"
+  },
+  "commands": [
+    {
+      "op": "createCanvas",
+      "id": "canvas",
+      "width": 1080,
+      "height": 1350,
+      "backgroundColor": "#ece4db"
+    },
+    {
+      "op": "drawShape",
+      "id": "polaroid-card",
+      "shape": "roundRect",
+      "x": 120,
+      "y": 80,
+      "width": 840,
+      "height": 1120,
+      "style": {
+        "fill": "#ffffff",
+        "cornerRadius": 24
+      }
+    },
+    {
+      "op": "placeImage",
+      "id": "photo-layer",
+      "source": "photo",
+      "x": 160,
+      "y": 130,
+      "width": 760,
+      "height": 760,
+      "fit": "cover",
+      "angle": -2,
+      "shadow": {
+        "color": "rgba(0,0,0,0.18)",
+        "blur": 20,
+        "offsetX": 0,
+        "offsetY": 8
+      }
+    },
+    {
+      "op": "maskImage",
+      "target": "photo-layer",
+      "shape": "roundRect",
+      "radius": 12
+    },
+    {
+      "op": "drawText",
+      "source": "caption",
+      "x": 180,
+      "y": 950,
+      "width": 720,
+      "maxLines": 2,
+      "ellipsis": true,
+      "style": {
+        "fontFamily": "Nanum Myeongjo",
+        "fontSize": 42,
+        "fontWeight": "normal",
+        "fill": "#2d2a26",
+        "textAlign": "center",
+        "lineHeight": 1.3
+      }
+    },
+    {
+      "op": "exportImage",
+      "format": "image/png",
+      "filename": "polaroid-classic.png"
+    }
+  ]
+}

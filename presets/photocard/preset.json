@@ -1,0 +1,116 @@
+{
+  "schemaVersion": "1.0.0",
+  "metadata": {
+    "id": "photocard-soft",
+    "name": "Photocard Soft",
+    "version": "1.0.0",
+    "description": "Rounded photocard layout with profile-style text.",
+    "tags": ["photocard", "profile", "card"]
+  },
+  "inputs": [
+    {
+      "name": "photo",
+      "type": "image",
+      "label": "Profile Photo",
+      "required": true,
+      "aspectRatio": 0.72
+    },
+    {
+      "name": "name",
+      "type": "text",
+      "label": "Name",
+      "required": true,
+      "maxLength": 20,
+      "placeholder": "Kim Yuna"
+    },
+    {
+      "name": "subtitle",
+      "type": "text",
+      "label": "Subtitle",
+      "maxLength": 32,
+      "placeholder": "Spring fan meeting"
+    }
+  ],
+  "output": {
+    "width": 900,
+    "height": 1400,
+    "format": "image/png",
+    "backgroundColor": "#dfe9f3"
+  },
+  "commands": [
+    {
+      "op": "createCanvas",
+      "id": "canvas",
+      "width": 900,
+      "height": 1400,
+      "backgroundColor": "#dfe9f3"
+    },
+    {
+      "op": "drawShape",
+      "id": "card-shell",
+      "shape": "roundRect",
+      "x": 60,
+      "y": 60,
+      "width": 780,
+      "height": 1280,
+      "style": {
+        "fill": "#fffaf4",
+        "cornerRadius": 42
+      }
+    },
+    {
+      "op": "placeImage",
+      "id": "profile-image",
+      "source": "photo",
+      "x": 120,
+      "y": 120,
+      "width": 660,
+      "height": 900,
+      "fit": "cover"
+    },
+    {
+      "op": "maskImage",
+      "target": "profile-image",
+      "shape": "roundRect",
+      "radius": 32
+    },
+    {
+      "op": "drawText",
+      "source": "name",
+      "x": 120,
+      "y": 1060,
+      "width": 520,
+      "maxLines": 1,
+      "ellipsis": true,
+      "style": {
+        "fontFamily": "Pretendard",
+        "fontSize": 56,
+        "fontWeight": "bold",
+        "fill": "#1f2933",
+        "textAlign": "left"
+      }
+    },
+    {
+      "op": "drawText",
+      "source": "subtitle",
+      "x": 120,
+      "y": 1140,
+      "width": 560,
+      "maxLines": 2,
+      "ellipsis": true,
+      "style": {
+        "fontFamily": "Pretendard",
+        "fontSize": 28,
+        "fontWeight": "normal",
+        "fill": "#52606d",
+        "textAlign": "left",
+        "lineHeight": 1.35
+      }
+    },
+    {
+      "op": "exportImage",
+      "format": "image/png",
+      "filename": "photocard-soft.png"
+    }
+  ]
+}

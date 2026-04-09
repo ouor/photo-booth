@@ -1,0 +1,53 @@
+{
+  "schemaVersion": "1.0.0",
+  "metadata": {
+    "id": "vhs-damaged",
+    "name": "VHS Damaged",
+    "version": "1.0.0",
+    "description": "Single-image preset with a rough damaged-tape VHS treatment.",
+    "tags": ["vhs", "analog-video", "single-image", "damaged"]
+  },
+  "inputs": [
+    {
+      "name": "photo",
+      "type": "image",
+      "label": "Damaged Frame",
+      "required": true
+    }
+  ],
+  "output": {
+    "width": 1080,
+    "height": 1350,
+    "format": "image/png",
+    "backgroundColor": "#050608"
+  },
+  "commands": [
+    {
+      "op": "createCanvas",
+      "id": "canvas",
+      "width": 1080,
+      "height": 1350,
+      "backgroundColor": "#050608"
+    },
+    {
+      "op": "placeImage",
+      "id": "damaged-photo",
+      "source": "photo",
+      "x": 0,
+      "y": 0,
+      "width": 1080,
+      "height": 1350,
+      "fit": "cover"
+    },
+    {
+      "op": "applyAnalogVideo",
+      "preset": "vhs-damaged-tape",
+      "intensity": 1
+    },
+    {
+      "op": "exportImage",
+      "format": "image/png",
+      "filename": "vhs-damaged.png"
+    }
+  ]
+}

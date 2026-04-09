@@ -1,0 +1,91 @@
+{
+  "schemaVersion": "1.0.0",
+  "metadata": {
+    "id": "meme-bubble-classic",
+    "name": "Meme Bubble Classic",
+    "version": "1.0.0",
+    "description": "Meme preset with large headline text over a photo.",
+    "tags": ["meme", "headline", "caption"]
+  },
+  "inputs": [
+    {
+      "name": "photo",
+      "type": "image",
+      "label": "Background Photo",
+      "required": true
+    },
+    {
+      "name": "headline",
+      "type": "text",
+      "label": "Headline",
+      "required": true,
+      "maxLength": 28,
+      "placeholder": "When the weekend finally starts"
+    }
+  ],
+  "output": {
+    "width": 1080,
+    "height": 1080,
+    "format": "image/png",
+    "backgroundColor": "#000000"
+  },
+  "commands": [
+    {
+      "op": "createCanvas",
+      "id": "canvas",
+      "width": 1080,
+      "height": 1080,
+      "backgroundColor": "#000000"
+    },
+    {
+      "op": "placeImage",
+      "id": "meme-photo",
+      "source": "photo",
+      "x": 0,
+      "y": 0,
+      "width": 1080,
+      "height": 1080,
+      "fit": "cover"
+    },
+    {
+      "op": "applyFilter",
+      "target": "meme-photo",
+      "filters": [
+        {
+          "type": "contrast",
+          "amount": 0.18
+        },
+        {
+          "type": "brightness",
+          "amount": 0.06
+        }
+      ]
+    },
+    {
+      "op": "drawText",
+      "source": "headline",
+      "x": 70,
+      "y": 60,
+      "width": 940,
+      "maxLines": 2,
+      "ellipsis": true,
+      "style": {
+        "fontFamily": "Impact",
+        "fontSize": 76,
+        "fontWeight": "bold",
+        "fill": "#ffffff",
+        "stroke": {
+          "color": "#111111",
+          "width": 6
+        },
+        "textAlign": "center",
+        "lineHeight": 1.1
+      }
+    },
+    {
+      "op": "exportImage",
+      "format": "image/png",
+      "filename": "meme-bubble-classic.png"
+    }
+  ]
+}

@@ -1,0 +1,53 @@
+{
+  "schemaVersion": "1.0.0",
+  "metadata": {
+    "id": "vhs-memory",
+    "name": "VHS Memory",
+    "version": "1.0.0",
+    "description": "Single-image preset with a soft home-video VHS finish.",
+    "tags": ["vhs", "analog-video", "single-image", "retro"]
+  },
+  "inputs": [
+    {
+      "name": "photo",
+      "type": "image",
+      "label": "Memory Frame",
+      "required": true
+    }
+  ],
+  "output": {
+    "width": 1080,
+    "height": 1350,
+    "format": "image/png",
+    "backgroundColor": "#10131a"
+  },
+  "commands": [
+    {
+      "op": "createCanvas",
+      "id": "canvas",
+      "width": 1080,
+      "height": 1350,
+      "backgroundColor": "#10131a"
+    },
+    {
+      "op": "placeImage",
+      "id": "memory-photo",
+      "source": "photo",
+      "x": 0,
+      "y": 0,
+      "width": 1080,
+      "height": 1350,
+      "fit": "cover"
+    },
+    {
+      "op": "applyAnalogVideo",
+      "preset": "vhs-home-video",
+      "intensity": 0.88
+    },
+    {
+      "op": "exportImage",
+      "format": "image/png",
+      "filename": "vhs-memory.png"
+    }
+  ]
+}
