@@ -11,6 +11,12 @@ import { mockStickers } from '@/lib/data/stickers'
 import { getEditorPresetDocument } from '@/lib/data/preset-documents'
 import { getPresetById as getPresetMetaById } from '@/lib/data/presets'
 import {
+  applyImageFilterAdjustments,
+  defaultImageFilterAdjustments,
+  getImageFilterAdjustments,
+  type ImageFilterAdjustmentMap,
+} from '@/lib/editor/filter-state'
+import {
   applyOverlayInspectorValue,
   getOverlayInspectorControls,
   getOverlayListMeta,
@@ -65,32 +71,57 @@ export default function CreatePage({ params }: CreatePageProps) {
   )
 
   const [renderInputs, setRenderInputs] = useState<RenderInputs>(() => buildInitialInputs(id))
+  const [imageFilterAdjustments, setImageFilterAdjustments] = useState<ImageFilterAdjustmentMap>({})
   const [overlays, setOverlays] = useState<OverlayItem[]>([])
   const [selectedOverlayId, setSelectedOverlayId] = useState<string | null>(null)
   const [pendingImageSlot, setPendingImageSlot] = useState<string | null>(null)
+  const [selectedImageSlot, setSelectedImageSlot] = useState<string | null>(null)
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const imageSlots = compiledPreset?.editorModel.imageSlots ?? []
+  const textSlots = compiledPreset?.editorModel.textSlots ?? []
 
   useEffect(() => {
     setRenderInputs(buildInitialInputs(id))
+    setImageFilterAdjustments({})
     setOverlays([])
     setSelectedOverlayId(null)
     setPendingImageSlot(null)
+    setSelectedImageSlot(null)
   }, [id])
 
   useEffect(() => {
-    if (!compiledPreset || !canvasRef.current) {
+    if (selectedImageSlot || imageSlots.length === 0) {
       return
     }
 
-    void renderPresetToCanvas(canvasRef.current, compiledPreset.renderModel, renderInputs, overlays)
-  }, [compiledPreset, overlays, renderInputs])
+    setSelectedImageSlot(imageSlots[0].inputName)
+  }, [imageSlots, selectedImageSlot])
+
+  const resolvedRenderModel = useMemo(
+    () =>
+      compiledPreset
+        ? applyImageFilterAdjustments(compiledPreset.renderModel, imageFilterAdjustments)
+        : null,
+    [compiledPreset, imageFilterAdjustments],
+  )
+
+  useEffect(() => {
+    if (!resolvedRenderModel || !canvasRef.current) {
+      return
+    }
+
+    void renderPresetToCanvas(canvasRef.current, resolvedRenderModel, renderInputs, overlays)
+  }, [overlays, renderInputs, resolvedRenderModel])
 
   const selectedOverlay = overlays.find((overlay) => overlay.id === selectedOverlayId) ?? null
   const inspectorControls = selectedOverlay ? getOverlayInspectorControls(selectedOverlay) : []
-
-  const imageSlots = compiledPreset?.editorModel.imageSlots ?? []
-  const textSlots = compiledPreset?.editorModel.textSlots ?? []
+  const activeImageFilterSlot = selectedImageSlot
+    ? imageSlots.find((slot) => slot.inputName === selectedImageSlot) ?? null
+    : null
+  const activeImageFilters = activeImageFilterSlot
+    ? getImageFilterAdjustments(imageFilterAdjustments, activeImageFilterSlot.inputName)
+    : defaultImageFilterAdjustments
 
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
@@ -205,14 +236,25 @@ export default function CreatePage({ params }: CreatePageProps) {
                     renderInputs[slot.inputName] !== null
 
                   return (
-                    <div key={slot.inputName} className="rounded-xl border border-foreground/10 p-3 space-y-3">
+                    <div
+                      key={slot.inputName}
+                      className={`rounded-xl border p-3 space-y-3 ${
+                        selectedImageSlot === slot.inputName
+                          ? 'border-primary bg-primary/5'
+                          : 'border-foreground/10'
+                      }`}
+                    >
                       <div className="flex items-center justify-between gap-3">
-                        <div>
+                        <button
+                          type="button"
+                          className="min-w-0 text-left"
+                          onClick={() => setSelectedImageSlot(slot.inputName)}
+                        >
                           <p className="font-medium">{slot.label}</p>
                           <p className="text-xs text-muted-foreground">
                             {Math.round(slot.width)} x {Math.round(slot.height)}
                           </p>
-                        </div>
+                        </button>
                         <Button
                           size="sm"
                           variant={hasImage ? 'outline' : 'default'}
@@ -244,6 +286,83 @@ export default function CreatePage({ params }: CreatePageProps) {
                 })}
               </div>
             </section>
+
+            {activeImageFilterSlot ? (
+              <section className="bg-card rounded-2xl p-6 border-2 border-foreground/10 y2k-shadow">
+                <h2 className="text-lg font-bold mb-4 font-[var(--font-display)]">
+                  이미지 필터
+                </h2>
+                <p className="text-sm text-muted-foreground mb-4">
+                  {activeImageFilterSlot.label}에 프리셋 필터 위로 추가 보정을 적용합니다.
+                </p>
+                <div className="space-y-4">
+                  {[
+                    { key: 'brightness', label: '밝기', min: -0.5, max: 0.5, step: 0.01 },
+                    { key: 'contrast', label: '대비', min: -0.5, max: 0.5, step: 0.01 },
+                    { key: 'saturation', label: '채도', min: -0.5, max: 0.8, step: 0.01 },
+                    { key: 'blur', label: '블러', min: 0, max: 8, step: 0.1 },
+                    { key: 'sepia', label: '세피아', min: 0, max: 1, step: 0.01 },
+                  ].map((filterControl) => (
+                    <label key={filterControl.key} className="block space-y-2">
+                      <div className="flex items-center justify-between text-sm">
+                        <span>{filterControl.label}</span>
+                        <span className="text-muted-foreground">
+                          {activeImageFilters[filterControl.key as keyof typeof activeImageFilters]}
+                        </span>
+                      </div>
+                      <input
+                        type="range"
+                        min={filterControl.min}
+                        max={filterControl.max}
+                        step={filterControl.step}
+                        value={activeImageFilters[filterControl.key as keyof typeof activeImageFilters] as number}
+                        onChange={(event) =>
+                          setImageFilterAdjustments((current) => ({
+                            ...current,
+                            [activeImageFilterSlot.inputName]: {
+                              ...getImageFilterAdjustments(current, activeImageFilterSlot.inputName),
+                              [filterControl.key]: Number(event.target.value),
+                            },
+                          }))
+                        }
+                        className="w-full"
+                      />
+                    </label>
+                  ))}
+
+                  <label className="flex items-center justify-between gap-3 rounded-xl border border-foreground/10 px-3 py-2">
+                    <span className="text-sm font-medium">흑백</span>
+                    <input
+                      type="checkbox"
+                      checked={activeImageFilters.grayscale}
+                      onChange={(event) =>
+                        setImageFilterAdjustments((current) => ({
+                          ...current,
+                          [activeImageFilterSlot.inputName]: {
+                            ...getImageFilterAdjustments(current, activeImageFilterSlot.inputName),
+                            grayscale: event.target.checked,
+                          },
+                        }))
+                      }
+                    />
+                  </label>
+
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="w-full"
+                    onClick={() =>
+                      setImageFilterAdjustments((current) => ({
+                        ...current,
+                        [activeImageFilterSlot.inputName]: defaultImageFilterAdjustments,
+                      }))
+                    }
+                  >
+                    필터 초기화
+                  </Button>
+                </div>
+              </section>
+            ) : null}
 
             {textSlots.length > 0 ? (
               <section className="bg-card rounded-2xl p-6 border-2 border-foreground/10 y2k-shadow">
