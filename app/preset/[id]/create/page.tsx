@@ -1,117 +1,177 @@
 'use client'
 
-import React, { useState, useRef } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, Upload, Trash2, Download } from 'lucide-react'
-import { Stage, Layer, Image as KonvaImage, Transformer } from 'react-konva'
+import { ArrowLeft, Download, ImagePlus, Sparkles, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import { mockStickers } from '@/lib/data/stickers'
-import { CanvasImage, CanvasSticker } from '@/lib/types/editor'
-import Konva from 'konva'
+import { getEditorPresetDocument } from '@/lib/data/preset-documents'
+import { getPresetById as getPresetMetaById } from '@/lib/data/presets'
+import {
+  applyOverlayInspectorValue,
+  getOverlayInspectorControls,
+  getOverlayListMeta,
+} from '@/lib/overlay-presenter'
+import type { OverlayItem } from '@/lib/overlay-editor'
+import { compilePreset } from '@/lib/preset-compiler'
+import {
+  renderPresetToCanvas,
+  type RenderImageValue,
+  type RenderInputs,
+} from '@/lib/preset-engine'
+import { toast } from 'sonner'
 
 interface CreatePageProps {
   params: Promise<{ id: string }>
 }
 
+function buildInitialInputs(presetId: string): RenderInputs {
+  const presetDocument = getEditorPresetDocument(presetId)
+  if (!presetDocument) {
+    return {}
+  }
+
+  return presetDocument.inputs.reduce<RenderInputs>((acc, input) => {
+    acc[input.name] = input.defaultValue ?? (input.type === 'image' ? null : '')
+    return acc
+  }, {})
+}
+
+function createStickerOverlay(imageUrl: string): OverlayItem {
+  return {
+    id: `sticker-${crypto.randomUUID()}`,
+    kind: 'sticker',
+    label: 'Sticker',
+    assetUrl: imageUrl,
+    x: 120,
+    y: 120,
+    width: 120,
+    height: 120,
+    rotation: 0,
+  }
+}
+
 export default function CreatePage({ params }: CreatePageProps) {
   const router = useRouter()
-  const unwrappedParams = React.use(params)
-  const [images, setImages] = useState<CanvasImage[]>([])
-  const [stickers, setStickers] = useState<CanvasSticker[]>([])
-  const [selectedId, setSelectedId] = useState<string | null>(null)
-  const [uploadedImages, setUploadedImages] = useState<HTMLImageElement[]>([])
-  const stageRef = useRef<Konva.Stage>(null)
-  const transformerRef = useRef<Konva.Transformer>(null)
+  const { id } = React.use(params)
+  const presetMeta = getPresetMetaById(id)
+  const presetDocument = getEditorPresetDocument(id)
+  const compiledPreset = useMemo(
+    () => (presetDocument ? compilePreset(presetDocument) : null),
+    [presetDocument],
+  )
 
-  const canvasWidth = 800
-  const canvasHeight = 1200
+  const [renderInputs, setRenderInputs] = useState<RenderInputs>(() => buildInitialInputs(id))
+  const [overlays, setOverlays] = useState<OverlayItem[]>([])
+  const [selectedOverlayId, setSelectedOverlayId] = useState<string | null>(null)
+  const [pendingImageSlot, setPendingImageSlot] = useState<string | null>(null)
+  const canvasRef = useRef<HTMLCanvasElement | null>(null)
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
 
-  // Handle image upload
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files
-    if (!files) return
+  useEffect(() => {
+    setRenderInputs(buildInitialInputs(id))
+    setOverlays([])
+    setSelectedOverlayId(null)
+    setPendingImageSlot(null)
+  }, [id])
 
-    Array.from(files).forEach((file) => {
-      const reader = new FileReader()
-      reader.onload = (event) => {
-        const img = new window.Image()
-        img.src = event.target?.result as string
-        img.onload = () => {
-          const newImage: CanvasImage = {
-            id: `img-${Date.now()}-${Math.random()}`,
-            src: img.src,
-            x: 100,
-            y: 100,
-            width: 300,
-            height: 400,
-            rotation: 0,
-          }
-          setImages((prev) => [...prev, newImage])
-          setUploadedImages((prev) => [...prev, img])
-        }
+  useEffect(() => {
+    if (!compiledPreset || !canvasRef.current) {
+      return
+    }
+
+    void renderPresetToCanvas(canvasRef.current, compiledPreset.renderModel, renderInputs, overlays)
+  }, [compiledPreset, overlays, renderInputs])
+
+  const selectedOverlay = overlays.find((overlay) => overlay.id === selectedOverlayId) ?? null
+  const inspectorControls = selectedOverlay ? getOverlayInspectorControls(selectedOverlay) : []
+
+  const imageSlots = compiledPreset?.editorModel.imageSlots ?? []
+  const textSlots = compiledPreset?.editorModel.textSlots ?? []
+
+  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file || !pendingImageSlot) {
+      return
+    }
+
+    const reader = new FileReader()
+    reader.onload = (loadEvent) => {
+      const url = loadEvent.target?.result
+      if (typeof url !== 'string') {
+        return
       }
-      reader.readAsDataURL(file)
-    })
-  }
 
-  // Add sticker to canvas
-  const handleAddSticker = (stickerId: string, imageUrl: string) => {
-    const newSticker: CanvasSticker = {
-      id: `sticker-${Date.now()}-${Math.random()}`,
-      stickerId,
-      imageUrl,
-      x: canvasWidth / 2 - 50,
-      y: canvasHeight / 2 - 50,
-      width: 100,
-      height: 100,
-      rotation: 0,
+      const imageValue: RenderImageValue = {
+        kind: 'image',
+        url,
+      }
+      setRenderInputs((current) => ({
+        ...current,
+        [pendingImageSlot]: imageValue,
+      }))
+      setPendingImageSlot(null)
+      event.target.value = ''
     }
-    setStickers((prev) => [...prev, newSticker])
+    reader.readAsDataURL(file)
   }
 
-  // Delete selected element
-  const handleDelete = () => {
-    if (!selectedId) return
-
-    if (selectedId.startsWith('img-')) {
-      setImages((prev) => prev.filter((img) => img.id !== selectedId))
-    } else if (selectedId.startsWith('sticker-')) {
-      setStickers((prev) => prev.filter((sticker) => sticker.id !== selectedId))
-    }
-    setSelectedId(null)
-  }
-
-  // Complete editing and go to result page
   const handleComplete = () => {
-    if (!stageRef.current) return
+    if (!canvasRef.current) {
+      return
+    }
 
-    const uri = stageRef.current.toDataURL({ pixelRatio: 2 })
-    // Store in localStorage as backup
+    const uri = canvasRef.current.toDataURL('image/png')
     localStorage.setItem('lastCreatedImage', uri)
-    // Navigate to result page
-    router.push(`/preset/${unwrappedParams.id}/result?image=${encodeURIComponent(uri)}`)
+    router.push(`/preset/${id}/result?image=${encodeURIComponent(uri)}`)
+  }
+
+  if (!compiledPreset || !presetDocument || !presetMeta) {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-4">
+        <div className="text-center space-y-4">
+          <p className="text-lg">프리셋을 불러올 수 없어요.</p>
+          <Link href="/">
+            <Button>홈으로 돌아가기</Button>
+          </Link>
+        </div>
+      </div>
+    )
   }
 
   return (
     <div className="min-h-screen pb-20">
-      {/* Header */}
       <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-md border-b-2 border-foreground/10 px-4 py-4">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Link href={`/preset/${unwrappedParams.id}`} className="p-2 hover:bg-muted rounded-full transition-colors">
+            <Link href={`/preset/${id}`} className="p-2 hover:bg-muted rounded-full transition-colors">
               <ArrowLeft className="w-6 h-6" />
             </Link>
-            <h1 className="text-2xl font-bold font-[var(--font-display)]">
-              사진 꾸미기
-            </h1>
+            <div>
+              <h1 className="text-2xl font-bold font-[var(--font-display)]">
+                사진 꾸미기
+              </h1>
+              <p className="text-sm text-muted-foreground">{presetMeta.name}</p>
+            </div>
           </div>
           <div className="flex gap-2">
-            {selectedId && (
-              <Button variant="destructive" size="sm" onClick={handleDelete}>
+            {selectedOverlay ? (
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => {
+                  setOverlays((current) =>
+                    current.filter((overlay) => overlay.id !== selectedOverlay.id),
+                  )
+                  setSelectedOverlayId(null)
+                }}
+              >
                 <Trash2 className="w-4 h-4" />
               </Button>
-            )}
+            ) : null}
             <Button onClick={handleComplete} className="bg-primary hover:bg-primary/90">
               완료
             </Button>
@@ -120,88 +180,115 @@ export default function CreatePage({ params }: CreatePageProps) {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 py-8">
-        <div className="grid lg:grid-cols-[1fr_300px] gap-8">
-          {/* Canvas Area */}
-          <div className="bg-white rounded-2xl border-4 border-foreground/10 overflow-hidden y2k-shadow">
-            <div className="overflow-auto">
-              <Stage
-                ref={stageRef}
-                width={canvasWidth}
-                height={canvasHeight}
-                style={{ background: 'linear-gradient(to bottom, #FFE5F0, #FFF5FA)' }}
-                onMouseDown={(e) => {
-                  const clickedOnEmpty = e.target === e.target.getStage()
-                  if (clickedOnEmpty) {
-                    setSelectedId(null)
-                  }
-                }}
-              >
-                <Layer>
-                  {/* Render images */}
-                  {images.map((img, index) => {
-                    const imageElement = uploadedImages[index]
-                    if (!imageElement) return null
-
-                    return (
-                      <ImageElement
-                        key={img.id}
-                        image={img}
-                        imageElement={imageElement}
-                        isSelected={img.id === selectedId}
-                        onSelect={() => setSelectedId(img.id)}
-                        onChange={(newAttrs) => {
-                          setImages((prev) =>
-                            prev.map((i) => (i.id === img.id ? { ...i, ...newAttrs } : i))
-                          )
-                        }}
-                      />
-                    )
-                  })}
-
-                  {/* Render stickers */}
-                  {stickers.map((sticker) => (
-                    <StickerElement
-                      key={sticker.id}
-                      sticker={sticker}
-                      isSelected={sticker.id === selectedId}
-                      onSelect={() => setSelectedId(sticker.id)}
-                      onChange={(newAttrs) => {
-                        setStickers((prev) =>
-                          prev.map((s) => (s.id === sticker.id ? { ...s, ...newAttrs } : s))
-                        )
-                      }}
-                    />
-                  ))}
-                </Layer>
-              </Stage>
+        <div className="grid lg:grid-cols-[1fr_320px] gap-8">
+          <section className="bg-white rounded-2xl border-4 border-foreground/10 overflow-hidden y2k-shadow p-4">
+            <div className="mx-auto max-w-[720px]">
+              <canvas
+                ref={canvasRef}
+                width={compiledPreset.renderModel.width}
+                height={compiledPreset.renderModel.height}
+                className="w-full h-auto rounded-xl bg-white"
+              />
             </div>
-          </div>
+          </section>
 
-          {/* Sidebar */}
-          <div className="space-y-6">
-            {/* Upload Photos */}
+          <aside className="space-y-6">
             <section className="bg-card rounded-2xl p-6 border-2 border-foreground/10 y2k-shadow">
-              <h2 className="text-lg font-bold mb-4 font-[var(--font-display)]">
-                사진 추가
+              <h2 className="text-lg font-bold mb-4 font-[var(--font-display)] flex items-center gap-2">
+                <ImagePlus className="w-5 h-5 text-primary" />
+                사진 슬롯
               </h2>
-              <label className="block">
-                <input
-                  type="file"
-                  accept="image/*"
-                  multiple
-                  onChange={handleImageUpload}
-                  className="hidden"
-                />
-                <div className="border-2 border-dashed border-foreground/20 rounded-xl p-8 text-center cursor-pointer hover:border-primary hover:bg-primary/5 transition-colors">
-                  <Upload className="w-8 h-8 mx-auto mb-2 text-muted-foreground" />
-                  <p className="text-sm text-muted-foreground">
-                    클릭하여 사진 업로드
-                  </p>
-                </div>
-              </label>
+              <div className="space-y-3">
+                {imageSlots.map((slot) => {
+                  const hasImage =
+                    typeof renderInputs[slot.inputName] === 'object' &&
+                    renderInputs[slot.inputName] !== null
+
+                  return (
+                    <div key={slot.inputName} className="rounded-xl border border-foreground/10 p-3 space-y-3">
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <p className="font-medium">{slot.label}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {Math.round(slot.width)} x {Math.round(slot.height)}
+                          </p>
+                        </div>
+                        <Button
+                          size="sm"
+                          variant={hasImage ? 'outline' : 'default'}
+                          onClick={() => {
+                            setPendingImageSlot(slot.inputName)
+                            fileInputRef.current?.click()
+                          }}
+                        >
+                          {hasImage ? '교체' : '추가'}
+                        </Button>
+                      </div>
+                      {hasImage ? (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="w-full"
+                          onClick={() =>
+                            setRenderInputs((current) => ({
+                              ...current,
+                              [slot.inputName]: null,
+                            }))
+                          }
+                        >
+                          비우기
+                        </Button>
+                      ) : null}
+                    </div>
+                  )
+                })}
+              </div>
             </section>
 
-            {/* Stickers */}
+            {textSlots.length > 0 ? (
+              <section className="bg-card rounded-2xl p-6 border-2 border-foreground/10 y2k-shadow">
+                <h2 className="text-lg font-bold mb-4 font-[var(--font-display)]">
+                  텍스트
+                </h2>
+                <div className="space-y-3">
+                  {textSlots.map((slot) => {
+                    const value = typeof renderInputs[slot.inputName] === 'string'
+                      ? renderInputs[slot.inputName]
+                      : ''
+
+                    return slot.maxLines && slot.maxLines > 1 ? (
+                      <div key={slot.inputName} className="space-y-2">
+                        <label className="text-sm font-medium">{slot.label}</label>
+                        <Textarea
+                          value={value}
+                          rows={slot.maxLines}
+                          onChange={(event) =>
+                            setRenderInputs((current) => ({
+                              ...current,
+                              [slot.inputName]: event.target.value,
+                            }))
+                          }
+                        />
+                      </div>
+                    ) : (
+                      <div key={slot.inputName} className="space-y-2">
+                        <label className="text-sm font-medium">{slot.label}</label>
+                        <Input
+                          value={value}
+                          onChange={(event) =>
+                            setRenderInputs((current) => ({
+                              ...current,
+                              [slot.inputName]: event.target.value,
+                            }))
+                          }
+                        />
+                      </div>
+                    )
+                  })}
+                </div>
+              </section>
+            ) : null}
+
             <section className="bg-card rounded-2xl p-6 border-2 border-foreground/10 y2k-shadow">
               <h2 className="text-lg font-bold mb-4 font-[var(--font-display)]">
                 스티커
@@ -210,7 +297,12 @@ export default function CreatePage({ params }: CreatePageProps) {
                 {mockStickers.map((sticker) => (
                   <button
                     key={sticker.id}
-                    onClick={() => handleAddSticker(sticker.id, sticker.imageUrl)}
+                    onClick={() => {
+                      const overlay = createStickerOverlay(sticker.imageUrl)
+                      setOverlays((current) => [...current, overlay])
+                      setSelectedOverlayId(overlay.id)
+                      toast.success('스티커가 추가되었어요.')
+                    }}
                     className="aspect-square rounded-xl border-2 border-foreground/10 hover:border-primary hover:scale-105 transition-all p-2 bg-white"
                   >
                     <img
@@ -222,150 +314,123 @@ export default function CreatePage({ params }: CreatePageProps) {
                 ))}
               </div>
             </section>
-          </div>
+
+            {overlays.length > 0 ? (
+              <section className="bg-card rounded-2xl p-6 border-2 border-foreground/10 y2k-shadow space-y-4">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-lg font-bold font-[var(--font-display)]">
+                    오버레이
+                  </h2>
+                  <span className="text-sm text-muted-foreground">{overlays.length}개</span>
+                </div>
+                <div className="space-y-2">
+                  {overlays.map((overlay, index) => {
+                    const meta = getOverlayListMeta(overlay, index)
+                    return (
+                      <button
+                        key={overlay.id}
+                        type="button"
+                        className={`w-full rounded-xl border px-3 py-2 text-left transition-colors ${
+                          overlay.id === selectedOverlayId
+                            ? 'border-primary bg-primary/10'
+                            : 'border-foreground/10 hover:border-primary/40'
+                        }`}
+                        onClick={() => setSelectedOverlayId(overlay.id)}
+                      >
+                        <strong className="block">{meta.title}</strong>
+                        <span className="text-xs text-muted-foreground">{meta.subtitle}</span>
+                      </button>
+                    )
+                  })}
+                </div>
+
+                {selectedOverlay ? (
+                  <div className="space-y-3 border-t border-foreground/10 pt-4">
+                    <div className="flex items-center justify-between">
+                      <p className="font-medium">선택한 오버레이</p>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => {
+                          setOverlays((current) =>
+                            current.filter((overlay) => overlay.id !== selectedOverlay.id),
+                          )
+                          setSelectedOverlayId(null)
+                        }}
+                      >
+                        삭제
+                      </Button>
+                    </div>
+                    {inspectorControls.map((control) => (
+                      <label key={control.key} className="block space-y-2">
+                        <span className="text-sm font-medium">{control.label}</span>
+                        {control.type === 'range' ? (
+                          <input
+                            type="range"
+                            min={control.min}
+                            max={control.max}
+                            value={control.value}
+                            onChange={(event) =>
+                              setOverlays((current) =>
+                                current.map((overlay) =>
+                                  overlay.id === selectedOverlay.id
+                                    ? applyOverlayInspectorValue(
+                                        overlay,
+                                        control.key,
+                                        Number(event.target.value),
+                                      )
+                                    : overlay,
+                                ),
+                              )
+                            }
+                            className="w-full"
+                          />
+                        ) : (
+                          <Input
+                            value={control.value}
+                            onChange={(event) =>
+                              setOverlays((current) =>
+                                current.map((overlay) =>
+                                  overlay.id === selectedOverlay.id
+                                    ? applyOverlayInspectorValue(
+                                        overlay,
+                                        control.key,
+                                        event.target.value,
+                                      )
+                                    : overlay,
+                                ),
+                              )
+                            }
+                          />
+                        )}
+                      </label>
+                    ))}
+                  </div>
+                ) : null}
+              </section>
+            ) : null}
+
+            <section className="bg-card rounded-2xl p-6 border-2 border-foreground/10 y2k-shadow">
+              <h2 className="text-lg font-bold mb-4 font-[var(--font-display)] flex items-center gap-2">
+                <Sparkles className="w-5 h-5 text-primary" />
+                출력
+              </h2>
+              <Button onClick={handleComplete} className="w-full bg-primary hover:bg-primary/90">
+                <Download className="w-4 h-4 mr-2" />
+                결과 보기
+              </Button>
+            </section>
+          </aside>
         </div>
       </main>
+
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        hidden
+        onChange={handleImageUpload}
+      />
     </div>
-  )
-}
-
-// Image element component
-function ImageElement({
-  image,
-  imageElement,
-  isSelected,
-  onSelect,
-  onChange,
-}: {
-  image: CanvasImage
-  imageElement: HTMLImageElement
-  isSelected: boolean
-  onSelect: () => void
-  onChange: (attrs: Partial<CanvasImage>) => void
-}) {
-  const imageRef = useRef<Konva.Image>(null)
-  const transformerRef = useRef<Konva.Transformer>(null)
-
-  React.useEffect(() => {
-    if (isSelected && imageRef.current && transformerRef.current) {
-      transformerRef.current.nodes([imageRef.current])
-      transformerRef.current.getLayer()?.batchDraw()
-    }
-  }, [isSelected])
-
-  return (
-    <>
-      <KonvaImage
-        ref={imageRef}
-        image={imageElement}
-        x={image.x}
-        y={image.y}
-        width={image.width}
-        height={image.height}
-        rotation={image.rotation}
-        draggable
-        onClick={onSelect}
-        onTap={onSelect}
-        onDragEnd={(e) => {
-          onChange({
-            x: e.target.x(),
-            y: e.target.y(),
-          })
-        }}
-        onTransformEnd={() => {
-          const node = imageRef.current
-          if (!node) return
-
-          const scaleX = node.scaleX()
-          const scaleY = node.scaleY()
-
-          node.scaleX(1)
-          node.scaleY(1)
-
-          onChange({
-            x: node.x(),
-            y: node.y(),
-            width: Math.max(5, node.width() * scaleX),
-            height: Math.max(5, node.height() * scaleY),
-            rotation: node.rotation(),
-          })
-        }}
-      />
-      {isSelected && <Transformer ref={transformerRef} />}
-    </>
-  )
-}
-
-// Sticker element component
-function StickerElement({
-  sticker,
-  isSelected,
-  onSelect,
-  onChange,
-}: {
-  sticker: CanvasSticker
-  isSelected: boolean
-  onSelect: () => void
-  onChange: (attrs: Partial<CanvasSticker>) => void
-}) {
-  const [image, setImage] = useState<HTMLImageElement | null>(null)
-  const imageRef = useRef<Konva.Image>(null)
-  const transformerRef = useRef<Konva.Transformer>(null)
-
-  React.useEffect(() => {
-    const img = new window.Image()
-    img.src = sticker.imageUrl
-    img.onload = () => setImage(img)
-  }, [sticker.imageUrl])
-
-  React.useEffect(() => {
-    if (isSelected && imageRef.current && transformerRef.current) {
-      transformerRef.current.nodes([imageRef.current])
-      transformerRef.current.getLayer()?.batchDraw()
-    }
-  }, [isSelected])
-
-  if (!image) return null
-
-  return (
-    <>
-      <KonvaImage
-        ref={imageRef}
-        image={image}
-        x={sticker.x}
-        y={sticker.y}
-        width={sticker.width}
-        height={sticker.height}
-        rotation={sticker.rotation}
-        draggable
-        onClick={onSelect}
-        onTap={onSelect}
-        onDragEnd={(e) => {
-          onChange({
-            x: e.target.x(),
-            y: e.target.y(),
-          })
-        }}
-        onTransformEnd={() => {
-          const node = imageRef.current
-          if (!node) return
-
-          const scaleX = node.scaleX()
-          const scaleY = node.scaleY()
-
-          node.scaleX(1)
-          node.scaleY(1)
-
-          onChange({
-            x: node.x(),
-            y: node.y(),
-            width: Math.max(5, node.width() * scaleX),
-            height: Math.max(5, node.height() * scaleY),
-            rotation: node.rotation(),
-          })
-        }}
-      />
-      {isSelected && <Transformer ref={transformerRef} />}
-    </>
   )
 }
