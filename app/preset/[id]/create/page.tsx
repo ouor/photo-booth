@@ -11,11 +11,12 @@ import { CanvasImage, CanvasSticker } from '@/lib/types/editor'
 import Konva from 'konva'
 
 interface CreatePageProps {
-  params: { id: string }
+  params: Promise<{ id: string }>
 }
 
 export default function CreatePage({ params }: CreatePageProps) {
   const router = useRouter()
+  const unwrappedParams = React.use(params)
   const [images, setImages] = useState<CanvasImage[]>([])
   const [stickers, setStickers] = useState<CanvasSticker[]>([])
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -100,7 +101,7 @@ export default function CreatePage({ params }: CreatePageProps) {
       <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-md border-b-2 border-foreground/10 px-4 py-4">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Link href={`/preset/${params.id}`} className="p-2 hover:bg-muted rounded-full transition-colors">
+            <Link href={`/preset/${unwrappedParams.id}`} className="p-2 hover:bg-muted rounded-full transition-colors">
               <ArrowLeft className="w-6 h-6" />
             </Link>
             <h1 className="text-2xl font-bold font-[var(--font-display)]">
