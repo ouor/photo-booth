@@ -1,24 +1,13 @@
 import type { Metadata } from 'next'
-import { Nanum_Pen_Script, Gaegu, Geist } from 'next/font/google'
+import localFont from 'next/font/local'
 import { Analytics } from '@vercel/analytics/next'
 import './globals.css'
 
-const nanumPen = Nanum_Pen_Script({ 
-  weight: '400',
-  subsets: ['latin'],
-  variable: '--font-handwriting'
-});
-
-const gaegu = Gaegu({ 
-  weight: ['400', '700'],
-  subsets: ['latin'],
-  variable: '--font-display'
-});
-
-const geist = Geist({ 
-  subsets: ['latin'],
-  variable: '--font-sans'
-});
+const nanumMugunghwa = localFont({
+  src: '../public/fonts/NanumMugunghwa.ttf',
+  variable: '--font-mugunghwa',
+  display: 'swap',
+})
 
 export const metadata: Metadata = {
   title: 'Photo Booth - Create Your Memories',
@@ -49,7 +38,7 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="ko" className={`${geist.variable} ${gaegu.variable} ${nanumPen.variable}`}>
+    <html lang="ko" className={nanumMugunghwa.variable}>
       <body className="font-sans antialiased">
         {children}
         {process.env.NODE_ENV === 'production' && <Analytics />}

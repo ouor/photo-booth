@@ -68,7 +68,7 @@
 }
 
 @theme inline {
-  --font-sans: 'Geist', 'Geist Fallback';
+  --font-sans: var(--font-mugunghwa), 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
   --font-mono: 'Geist Mono', 'Geist Mono Fallback';
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -113,6 +113,7 @@
     @apply border-border outline-ring/50;
   }
   body {
+    font-size: 24px;
     @apply bg-background text-foreground;
     /* Pink grid background pattern */
     background-image: 
