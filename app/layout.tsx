@@ -1,14 +1,28 @@
 import type { Metadata } from 'next'
-import { Geist, Geist_Mono } from 'next/font/google'
+import { Nanum_Pen_Script, Gaegu, Geist } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import './globals.css'
 
-const _geist = Geist({ subsets: ["latin"] });
-const _geistMono = Geist_Mono({ subsets: ["latin"] });
+const nanumPen = Nanum_Pen_Script({ 
+  weight: '400',
+  subsets: ['latin'],
+  variable: '--font-handwriting'
+});
+
+const gaegu = Gaegu({ 
+  weight: ['400', '700'],
+  subsets: ['latin'],
+  variable: '--font-display'
+});
+
+const geist = Geist({ 
+  subsets: ['latin'],
+  variable: '--font-sans'
+});
 
 export const metadata: Metadata = {
-  title: 'v0 App',
-  description: 'Created with v0',
+  title: 'Photo Booth - Create Your Memories',
+  description: 'Y2K inspired photo booth web service. Choose a preset, upload photos, and create beautiful memories.',
   generator: 'v0.app',
   icons: {
     icon: [
@@ -35,7 +49,7 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en">
+    <html lang="ko" className={`${geist.variable} ${gaegu.variable} ${nanumPen.variable}`}>
       <body className="font-sans antialiased">
         {children}
         {process.env.NODE_ENV === 'production' && <Analytics />}
