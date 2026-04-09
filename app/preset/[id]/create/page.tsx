@@ -3,11 +3,9 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, Camera, Clipboard, Download, ImagePlus, Sparkles, Trash2 } from 'lucide-react'
+import { ArrowLeft, Download, Sparkles, Trash2 } from 'lucide-react'
 import { ImageSourceDialog } from '@/components/image-source-dialog'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Textarea } from '@/components/ui/textarea'
 import { mockStickers } from '@/lib/data/stickers'
 import { getEditorPresetDocument } from '@/lib/data/preset-documents'
 import { getPresetById as getPresetMetaById } from '@/lib/data/presets'
@@ -80,7 +78,9 @@ export default function CreatePage({ params }: CreatePageProps) {
   const [isImageSourceDialogOpen, setIsImageSourceDialogOpen] = useState(false)
   const [selectedImageSlot, setSelectedImageSlot] = useState<string | null>(null)
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
+  const canvasViewportRef = useRef<HTMLDivElement | null>(null)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const [canvasViewportWidth, setCanvasViewportWidth] = useState(0)
   const imageSlots = compiledPreset?.editorModel.imageSlots ?? []
   const textSlots = compiledPreset?.editorModel.textSlots ?? []
 
@@ -115,8 +115,27 @@ export default function CreatePage({ params }: CreatePageProps) {
       return
     }
 
-    void renderPresetToCanvas(canvasRef.current, resolvedRenderModel, renderInputs, overlays)
-  }, [overlays, renderInputs, resolvedRenderModel])
+    void renderPresetToCanvas(canvasRef.current, resolvedRenderModel, renderInputs, overlays, {
+      hiddenTextInputs: textSlots.map((slot) => slot.inputName),
+    })
+  }, [overlays, renderInputs, resolvedRenderModel, textSlots])
+
+  useEffect(() => {
+    const element = canvasViewportRef.current
+    if (!element) {
+      return
+    }
+
+    const updateSize = () => {
+      setCanvasViewportWidth(element.clientWidth)
+    }
+
+    updateSize()
+    const observer = new ResizeObserver(() => updateSize())
+    observer.observe(element)
+
+    return () => observer.disconnect()
+  }, [])
 
   const selectedOverlay = overlays.find((overlay) => overlay.id === selectedOverlayId) ?? null
   const inspectorControls = selectedOverlay ? getOverlayInspectorControls(selectedOverlay) : []
@@ -133,6 +152,10 @@ export default function CreatePage({ params }: CreatePageProps) {
         : null,
     [compiledPreset?.editorModel, overlays, resolvedRenderModel],
   )
+  const canvasScale = canvasViewportWidth > 0
+    ? canvasViewportWidth / compiledPreset.renderModel.width
+    : 1
+  const canvasViewportHeight = compiledPreset.renderModel.height * canvasScale
 
   const applyImageToPendingSlot = (url: string) => {
     if (!pendingImageSlot) {
@@ -188,6 +211,30 @@ export default function CreatePage({ params }: CreatePageProps) {
     router.push(`/preset/${id}/result?image=${encodeURIComponent(uri)}`)
   }
 
+  const getTextFieldStyle = (slot: (typeof textSlots)[number]): React.CSSProperties => {
+    const padding = typeof slot.style.padding === 'number' ? slot.style.padding : 0
+    const strokeWidth = slot.style.stroke?.width ?? 0
+
+    return {
+      left: slot.x * canvasScale,
+      top: slot.y * canvasScale,
+      width: slot.width * canvasScale,
+      minHeight: Math.max(slot.height * canvasScale, slot.style.fontSize * canvasScale * 1.2),
+      padding: padding * canvasScale,
+      color: slot.style.fill,
+      fontFamily: slot.style.fontFamily,
+      fontSize: slot.style.fontSize * canvasScale,
+      fontWeight: slot.style.fontWeight,
+      fontStyle: slot.style.fontStyle,
+      lineHeight: slot.style.lineHeight ?? 1.2,
+      textAlign: slot.style.textAlign === 'justify' ? 'left' : slot.style.textAlign,
+      backgroundColor: slot.style.backgroundColor ?? 'transparent',
+      WebkitTextStroke: slot.style.stroke
+        ? `${strokeWidth * canvasScale}px ${slot.style.stroke.color}`
+        : undefined,
+    }
+  }
+
   if (!compiledPreset || !presetDocument || !presetMeta) {
     return (
       <div className="min-h-screen flex items-center justify-center px-4">
@@ -241,92 +288,115 @@ export default function CreatePage({ params }: CreatePageProps) {
       <main className="max-w-7xl mx-auto px-4 py-8">
         <div className="grid lg:grid-cols-[1fr_320px] gap-8">
           <section className="bg-white rounded-2xl border-4 border-foreground/10 overflow-hidden y2k-shadow p-4">
-            <div className="mx-auto max-w-[720px]">
+            <div
+              ref={canvasViewportRef}
+              className="relative mx-auto max-w-[720px]"
+              style={{ height: canvasViewportHeight || undefined }}
+            >
               <canvas
                 ref={canvasRef}
                 width={compiledPreset.renderModel.width}
                 height={compiledPreset.renderModel.height}
-                className="w-full h-auto rounded-xl bg-white"
+                className="absolute inset-0 h-full w-full rounded-xl bg-white"
               />
-            </div>
-          </section>
-
-          <aside className="space-y-6">
-            <section className="bg-card rounded-2xl p-6 border-2 border-foreground/10 y2k-shadow">
-              <h2 className="text-lg font-bold mb-4 font-[var(--font-display)] flex items-center gap-2">
-                <ImagePlus className="w-5 h-5 text-primary" />
-                사진 슬롯
-              </h2>
-              <div className="space-y-3">
+              <div className="absolute inset-0">
                 {imageSlots.map((slot) => {
                   const hasImage =
                     typeof renderInputs[slot.inputName] === 'object' &&
                     renderInputs[slot.inputName] !== null
 
                   return (
-                    <div
+                    <button
                       key={slot.inputName}
-                      className={`rounded-xl border p-3 space-y-3 ${
+                      type="button"
+                      className={`group absolute overflow-hidden rounded-xl border-2 text-left transition-all ${
                         selectedImageSlot === slot.inputName
-                          ? 'border-primary bg-primary/5'
-                          : 'border-foreground/10'
+                          ? 'border-primary shadow-[0_0_0_4px_rgba(255,92,0,0.12)]'
+                          : hasImage
+                            ? 'border-transparent hover:border-white/70'
+                            : 'border-dashed border-white/70 bg-black/15 hover:bg-black/25'
                       }`}
+                      style={{
+                        left: slot.x * canvasScale,
+                        top: slot.y * canvasScale,
+                        width: slot.width * canvasScale,
+                        height: slot.height * canvasScale,
+                      }}
+                      onClick={() => {
+                        setSelectedImageSlot(slot.inputName)
+                        setPendingImageSlot(slot.inputName)
+                        setIsImageSourceDialogOpen(true)
+                      }}
                     >
-                      <div className="flex items-center justify-between gap-3">
-                        <button
-                          type="button"
-                          className="min-w-0 text-left"
-                          onClick={() => setSelectedImageSlot(slot.inputName)}
-                        >
-                          <p className="font-medium">{slot.label}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {Math.round(slot.width)} x {Math.round(slot.height)}
+                      <div
+                        className={`absolute inset-0 transition-opacity ${
+                          hasImage ? 'bg-black/0 group-hover:bg-black/18' : 'bg-transparent'
+                        }`}
+                      />
+                      <div className="absolute inset-x-0 bottom-0 flex items-center justify-between bg-gradient-to-t from-black/65 via-black/10 to-transparent px-3 py-3 text-white">
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-semibold">{slot.label}</p>
+                          <p className="text-xs text-white/80">
+                            {hasImage ? '탭해서 교체하기' : '사진 추가'}
                           </p>
-                        </button>
-                        <Button
-                          size="sm"
-                          variant={hasImage ? 'outline' : 'default'}
-                          onClick={() => {
-                            setPendingImageSlot(slot.inputName)
-                            setIsImageSourceDialogOpen(true)
-                          }}
-                        >
-                          {hasImage ? '교체' : '추가'}
-                        </Button>
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-1 text-[11px] text-muted-foreground">
-                          <ImagePlus className="h-3 w-3" />
-                          파일
-                        </span>
-                        <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-1 text-[11px] text-muted-foreground">
-                          <Camera className="h-3 w-3" />
-                          카메라
-                        </span>
-                        <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-1 text-[11px] text-muted-foreground">
-                          <Clipboard className="h-3 w-3" />
-                          클립보드
+                        </div>
+                        <span className="rounded-full border border-white/35 bg-white/10 px-2.5 py-1 text-[11px]">
+                          {hasImage ? 'Replace' : 'Add'}
                         </span>
                       </div>
-                      {hasImage ? (
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="w-full"
-                          onClick={() =>
-                            setRenderInputs((current) => ({
-                              ...current,
-                              [slot.inputName]: null,
-                            }))
-                          }
-                        >
-                          비우기
-                        </Button>
-                      ) : null}
-                    </div>
+                    </button>
+                  )
+                })}
+
+                {textSlots.map((slot) => {
+                  const value = typeof renderInputs[slot.inputName] === 'string'
+                    ? renderInputs[slot.inputName]
+                    : ''
+                  const commonClassName = `absolute rounded-lg border border-transparent bg-transparent text-foreground outline-none transition-colors placeholder:text-foreground/45 focus:border-primary/40 focus:bg-white/10 ${slot.maxLines && slot.maxLines > 1 ? 'resize-none' : ''}`
+
+                  return slot.maxLines && slot.maxLines > 1 ? (
+                    <textarea
+                      key={slot.inputName}
+                      value={value}
+                      rows={slot.maxLines}
+                      placeholder={slot.label}
+                      className={commonClassName}
+                      style={getTextFieldStyle(slot)}
+                      onChange={(event) =>
+                        setRenderInputs((current) => ({
+                          ...current,
+                          [slot.inputName]: event.target.value,
+                        }))
+                      }
+                    />
+                  ) : (
+                    <input
+                      key={slot.inputName}
+                      value={value}
+                      placeholder={slot.label}
+                      className={commonClassName}
+                      style={getTextFieldStyle(slot)}
+                      onChange={(event) =>
+                        setRenderInputs((current) => ({
+                          ...current,
+                          [slot.inputName]: event.target.value,
+                        }))
+                      }
+                    />
                   )
                 })}
               </div>
+            </div>
+          </section>
+
+          <aside className="space-y-6">
+            <section className="bg-card rounded-2xl p-6 border-2 border-foreground/10 y2k-shadow">
+              <h2 className="text-lg font-bold mb-2 font-[var(--font-display)]">
+                직접 편집
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                사진 칸을 눌러 이미지를 고르고, 프레임 안 텍스트를 바로 수정해 보세요.
+              </p>
             </section>
 
             {activeImageFilterSlot ? (
@@ -402,50 +472,19 @@ export default function CreatePage({ params }: CreatePageProps) {
                   >
                     필터 초기화
                   </Button>
-                </div>
-              </section>
-            ) : null}
-
-            {textSlots.length > 0 ? (
-              <section className="bg-card rounded-2xl p-6 border-2 border-foreground/10 y2k-shadow">
-                <h2 className="text-lg font-bold mb-4 font-[var(--font-display)]">
-                  텍스트
-                </h2>
-                <div className="space-y-3">
-                  {textSlots.map((slot) => {
-                    const value = typeof renderInputs[slot.inputName] === 'string'
-                      ? renderInputs[slot.inputName]
-                      : ''
-
-                    return slot.maxLines && slot.maxLines > 1 ? (
-                      <div key={slot.inputName} className="space-y-2">
-                        <label className="text-sm font-medium">{slot.label}</label>
-                        <Textarea
-                          value={value}
-                          rows={slot.maxLines}
-                          onChange={(event) =>
-                            setRenderInputs((current) => ({
-                              ...current,
-                              [slot.inputName]: event.target.value,
-                            }))
-                          }
-                        />
-                      </div>
-                    ) : (
-                      <div key={slot.inputName} className="space-y-2">
-                        <label className="text-sm font-medium">{slot.label}</label>
-                        <Input
-                          value={value}
-                          onChange={(event) =>
-                            setRenderInputs((current) => ({
-                              ...current,
-                              [slot.inputName]: event.target.value,
-                            }))
-                          }
-                        />
-                      </div>
-                    )
-                  })}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full"
+                    onClick={() =>
+                      setRenderInputs((current) => ({
+                        ...current,
+                        [activeImageFilterSlot.inputName]: null,
+                      }))
+                    }
+                  >
+                    사진 비우기
+                  </Button>
                 </div>
               </section>
             ) : null}
