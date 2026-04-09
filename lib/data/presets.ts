@@ -1,3 +1,5 @@
+import { getEditorPresetDocument } from "@/lib/data/preset-documents"
+
 export interface Preset {
   id: string
   name: string
@@ -35,6 +37,29 @@ export interface Sticker {
   name: string
   category: 'default' | 'user'
   userId?: string
+}
+
+function enrichPresetFromDocument(preset: Preset): Preset {
+  const presetDocument = getEditorPresetDocument(preset.id)
+  if (!presetDocument) {
+    return preset
+  }
+
+  const requiredPhotos = presetDocument.inputs.filter((input) => input.type === "image").length
+
+  return {
+    ...preset,
+    name: presetDocument.metadata.name,
+    description: presetDocument.metadata.description ?? preset.description,
+    tags: presetDocument.metadata.tags ?? preset.tags,
+    requiredPhotos: requiredPhotos > 0 ? requiredPhotos : preset.requiredPhotos,
+    layout: {
+      ...preset.layout,
+      width: presetDocument.output.width,
+      height: presetDocument.output.height,
+      backgroundColor: presetDocument.output.backgroundColor ?? preset.layout.backgroundColor,
+    },
+  }
 }
 
 // Mock Presets Data
@@ -129,7 +154,7 @@ export const mockPresets: Preset[] = [
     category: '스타일',
     createdAt: '2024-03-10',
   },
-];
+].map(enrichPresetFromDocument);
 
 // Mock Stickers Data
 export const mockStickers: Sticker[] = [
