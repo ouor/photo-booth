@@ -82,17 +82,15 @@ export default function CreatePage({ params }: CreatePageProps) {
     setSelectedId(null)
   }
 
-  // Download canvas as image
-  const handleDownload = () => {
+  // Complete editing and go to result page
+  const handleComplete = () => {
     if (!stageRef.current) return
 
     const uri = stageRef.current.toDataURL({ pixelRatio: 2 })
-    const link = document.createElement('a')
-    link.download = `photo-booth-${Date.now()}.png`
-    link.href = uri
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
+    // Store in localStorage as backup
+    localStorage.setItem('lastCreatedImage', uri)
+    // Navigate to result page
+    router.push(`/preset/${unwrappedParams.id}/result?image=${encodeURIComponent(uri)}`)
   }
 
   return (
@@ -114,9 +112,8 @@ export default function CreatePage({ params }: CreatePageProps) {
                 <Trash2 className="w-4 h-4" />
               </Button>
             )}
-            <Button onClick={handleDownload} className="bg-primary hover:bg-primary/90">
-              <Download className="w-4 h-4 mr-2" />
-              다운로드
+            <Button onClick={handleComplete} className="bg-primary hover:bg-primary/90">
+              완료
             </Button>
           </div>
         </div>
