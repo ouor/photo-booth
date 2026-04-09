@@ -23,7 +23,7 @@ import {
 } from '@/components/ui/alert-dialog'
 import { getCurrentUser } from '@/lib/auth/mock-auth'
 import { getSavedWorks, deleteWork, SavedWork } from '@/lib/storage/local-storage'
-import { ArrowLeft, MoreVertical, Download, Trash2, Edit } from 'lucide-react'
+import { ArrowLeft, MoreVertical, Download, Trash2, Edit, Image as ImageIcon } from 'lucide-react'
 import { Empty } from '@/components/ui/empty'
 import { toast } from 'sonner'
 import Image from 'next/image'
@@ -93,7 +93,7 @@ export default function MyWorksPage() {
       <main className="max-w-4xl mx-auto px-4 py-8">
         {works.length === 0 ? (
           <Empty
-            icon={<Image className="w-12 h-12" />}
+            icon={<ImageIcon className="w-12 h-12" />}
             title="작업물이 없습니다"
             description="프리셋을 선택해서 첫 작업물을 만들어보세요"
           >

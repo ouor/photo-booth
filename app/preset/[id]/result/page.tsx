@@ -82,14 +82,16 @@ export default function ResultPage({ params }: ResultPageProps) {
         id: `work-${Date.now()}`,
         presetId: preset.id,
         presetName: preset.name,
-        imageUrl: imageData,
+        imageDataUrl: imageData,
+        thumbnailUrl: imageData,
         createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
       })
 
       toast.success('저장 완료!', {
         description: '내 작업물에 저장되었습니다.',
       })
-    } catch (error) {
+    } catch {
       toast.error('저장 실패', {
         description: '다시 시도해주세요.',
       })

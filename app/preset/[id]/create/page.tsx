@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { ArrowLeft, Download, Sparkles, Trash2 } from 'lucide-react'
 import { ImageSourceDialog } from '@/components/image-source-dialog'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { mockStickers } from '@/lib/data/stickers'
 import { getEditorPresetDocument } from '@/lib/data/preset-documents'
 import { getPresetById as getPresetMetaById } from '@/lib/data/presets'
@@ -154,15 +155,11 @@ export default function CreatePage({ params }: CreatePageProps) {
     : defaultImageFilterAdjustments
   const exportModel = useMemo(
     () =>
-      resolvedRenderModel
+      resolvedRenderModel && compiledPreset
         ? compileExportModel(resolvedRenderModel, compiledPreset.editorModel, overlays)
         : null,
-    [compiledPreset?.editorModel, overlays, resolvedRenderModel],
+    [compiledPreset, overlays, resolvedRenderModel],
   )
-  const canvasScale = canvasViewportWidth > 0
-    ? canvasViewportWidth / compiledPreset.renderModel.width
-    : 1
-  const canvasViewportHeight = compiledPreset.renderModel.height * canvasScale
 
   const applyImageToPendingSlot = (url: string) => {
     if (!pendingImageSlot) {
@@ -229,7 +226,6 @@ export default function CreatePage({ params }: CreatePageProps) {
       width: slot.width * canvasScale,
       minHeight: Math.max(slot.height * canvasScale, slot.style.fontSize * canvasScale * 1.2),
       padding: padding * canvasScale,
-      color: slot.style.fill,
       fontFamily: slot.style.fontFamily,
       fontSize: slot.style.fontSize * canvasScale,
       fontWeight: slot.style.fontWeight,
@@ -254,6 +250,11 @@ export default function CreatePage({ params }: CreatePageProps) {
       </div>
     )
   }
+
+  const canvasScale = canvasViewportWidth > 0
+    ? canvasViewportWidth / compiledPreset.renderModel.width
+    : 1
+  const canvasViewportHeight = compiledPreset.renderModel.height * canvasScale
 
   return (
     <div className="min-h-screen pb-20">
@@ -356,8 +357,9 @@ export default function CreatePage({ params }: CreatePageProps) {
                 })}
 
                 {textSlots.map((slot) => {
-                  const value = typeof renderInputs[slot.inputName] === 'string'
-                    ? renderInputs[slot.inputName]
+                  const currentValue = renderInputs[slot.inputName]
+                  const value = typeof currentValue === 'string'
+                    ? currentValue
                     : ''
                   const commonClassName = `absolute rounded-lg border border-transparent bg-transparent text-foreground outline-none transition-colors placeholder:text-foreground/45 focus:border-primary/40 focus:bg-white/10 ${slot.maxLines && slot.maxLines > 1 ? 'resize-none' : ''}`
 

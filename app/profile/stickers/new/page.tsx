@@ -18,7 +18,7 @@ import { saveSticker, CustomSticker } from '@/lib/storage/local-storage'
 import { ArrowLeft, Upload, Image as ImageIcon } from 'lucide-react'
 import { toast } from 'sonner'
 import Cropper from 'react-easy-crop'
-import { Area, Point } from 'react-easy-crop/types'
+import type { Area, Point } from 'react-easy-crop'
 
 const STICKER_CATEGORIES = [
   '귀여움',
@@ -39,7 +39,7 @@ export default function NewStickerPage() {
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null)
   const [isSaving, setIsSaving] = useState(false)
 
-  const onCropComplete = useCallback((croppedArea: Area, croppedAreaPixels: Area) => {
+  const onCropComplete = useCallback((_croppedArea: Area, croppedAreaPixels: Area) => {
     setCroppedAreaPixels(croppedAreaPixels)
   }, [])
 
