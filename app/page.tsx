@@ -6,6 +6,7 @@ import { PresetCard } from '@/components/preset-card'
 import { PresetCarousel } from '@/components/preset-carousel'
 import { SearchBar } from '@/components/search-bar'
 import { CategoryFilter } from '@/components/category-filter'
+import { HeaderNav } from '@/components/header-nav'
 import { mockPresets } from '@/lib/data/presets'
 import { Sparkles } from 'lucide-react'
 
@@ -41,12 +42,15 @@ export default function Home() {
       {/* Header */}
       <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-md border-b-2 border-foreground/10">
         <div className="max-w-4xl mx-auto px-4 py-4">
-          <div className="flex items-center justify-center gap-2">
-            <Sparkles className="h-6 w-6 text-primary" />
-            <h1 className="text-3xl font-bold text-center font-[var(--font-display)]">
-              Photo Booth
-            </h1>
-            <Sparkles className="h-6 w-6 text-primary" />
+          <div className="flex items-center justify-between">
+            <div className="flex items-center justify-center gap-2 flex-1">
+              <Sparkles className="h-6 w-6 text-primary" />
+              <h1 className="text-3xl font-bold text-center font-[var(--font-display)]">
+                Photo Booth
+              </h1>
+              <Sparkles className="h-6 w-6 text-primary" />
+            </div>
+            <HeaderNav />
           </div>
           <p className="text-center text-sm text-muted-foreground mt-1 font-[var(--font-display)]">
             나만의 감성 사진 만들기
