@@ -3,7 +3,8 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, Download, ImagePlus, Sparkles, Trash2 } from 'lucide-react'
+import { ArrowLeft, Camera, Clipboard, Download, ImagePlus, Sparkles, Trash2 } from 'lucide-react'
+import { ImageSourceDialog } from '@/components/image-source-dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -76,6 +77,7 @@ export default function CreatePage({ params }: CreatePageProps) {
   const [overlays, setOverlays] = useState<OverlayItem[]>([])
   const [selectedOverlayId, setSelectedOverlayId] = useState<string | null>(null)
   const [pendingImageSlot, setPendingImageSlot] = useState<string | null>(null)
+  const [isImageSourceDialogOpen, setIsImageSourceDialogOpen] = useState(false)
   const [selectedImageSlot, setSelectedImageSlot] = useState<string | null>(null)
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
@@ -88,6 +90,7 @@ export default function CreatePage({ params }: CreatePageProps) {
     setOverlays([])
     setSelectedOverlayId(null)
     setPendingImageSlot(null)
+    setIsImageSourceDialogOpen(false)
     setSelectedImageSlot(null)
   }, [id])
 
@@ -131,6 +134,25 @@ export default function CreatePage({ params }: CreatePageProps) {
     [compiledPreset?.editorModel, overlays, resolvedRenderModel],
   )
 
+  const applyImageToPendingSlot = (url: string) => {
+    if (!pendingImageSlot) {
+      return
+    }
+
+    const imageValue: RenderImageValue = {
+      kind: 'image',
+      url,
+    }
+
+    setRenderInputs((current) => ({
+      ...current,
+      [pendingImageSlot]: imageValue,
+    }))
+    setSelectedImageSlot(pendingImageSlot)
+    setPendingImageSlot(null)
+    setIsImageSourceDialogOpen(false)
+  }
+
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (!file || !pendingImageSlot) {
@@ -144,15 +166,7 @@ export default function CreatePage({ params }: CreatePageProps) {
         return
       }
 
-      const imageValue: RenderImageValue = {
-        kind: 'image',
-        url,
-      }
-      setRenderInputs((current) => ({
-        ...current,
-        [pendingImageSlot]: imageValue,
-      }))
-      setPendingImageSlot(null)
+      applyImageToPendingSlot(url)
       event.target.value = ''
     }
     reader.readAsDataURL(file)
@@ -274,11 +288,25 @@ export default function CreatePage({ params }: CreatePageProps) {
                           variant={hasImage ? 'outline' : 'default'}
                           onClick={() => {
                             setPendingImageSlot(slot.inputName)
-                            fileInputRef.current?.click()
+                            setIsImageSourceDialogOpen(true)
                           }}
                         >
                           {hasImage ? '교체' : '추가'}
                         </Button>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-1 text-[11px] text-muted-foreground">
+                          <ImagePlus className="h-3 w-3" />
+                          파일
+                        </span>
+                        <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-1 text-[11px] text-muted-foreground">
+                          <Camera className="h-3 w-3" />
+                          카메라
+                        </span>
+                        <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-1 text-[11px] text-muted-foreground">
+                          <Clipboard className="h-3 w-3" />
+                          클립보드
+                        </span>
                       </div>
                       {hasImage ? (
                         <Button
@@ -563,6 +591,20 @@ export default function CreatePage({ params }: CreatePageProps) {
         accept="image/*"
         hidden
         onChange={handleImageUpload}
+      />
+      <ImageSourceDialog
+        open={isImageSourceDialogOpen}
+        slotLabel={
+          imageSlots.find((slot) => slot.inputName === pendingImageSlot)?.label ?? '사진 슬롯'
+        }
+        onOpenChange={(open) => {
+          setIsImageSourceDialogOpen(open)
+          if (!open) {
+            setPendingImageSlot(null)
+          }
+        }}
+        onRequestFileSelect={() => fileInputRef.current?.click()}
+        onImageResolved={applyImageToPendingSlot}
       />
     </div>
   )
