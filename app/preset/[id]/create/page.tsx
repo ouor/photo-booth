@@ -77,6 +77,7 @@ export default function CreatePage({ params }: CreatePageProps) {
   const [pendingImageSlot, setPendingImageSlot] = useState<string | null>(null)
   const [isImageSourceDialogOpen, setIsImageSourceDialogOpen] = useState(false)
   const [selectedImageSlot, setSelectedImageSlot] = useState<string | null>(null)
+  const [activeTextInput, setActiveTextInput] = useState<string | null>(null)
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const canvasViewportRef = useRef<HTMLDivElement | null>(null)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
@@ -92,6 +93,7 @@ export default function CreatePage({ params }: CreatePageProps) {
     setPendingImageSlot(null)
     setIsImageSourceDialogOpen(false)
     setSelectedImageSlot(null)
+    setActiveTextInput(null)
   }, [id])
 
   useEffect(() => {
@@ -116,9 +118,14 @@ export default function CreatePage({ params }: CreatePageProps) {
     }
 
     void renderPresetToCanvas(canvasRef.current, resolvedRenderModel, renderInputs, overlays, {
-      hiddenTextInputs: textSlots.map((slot) => slot.inputName),
+      hiddenTextInputs: textSlots
+        .filter(
+          (slot) =>
+            slot.appearanceScope === 'adaptive' || slot.inputName === activeTextInput,
+        )
+        .map((slot) => slot.inputName),
     })
-  }, [overlays, renderInputs, resolvedRenderModel, textSlots])
+  }, [activeTextInput, overlays, renderInputs, resolvedRenderModel, textSlots])
 
   useEffect(() => {
     const element = canvasViewportRef.current
@@ -213,7 +220,8 @@ export default function CreatePage({ params }: CreatePageProps) {
 
   const getTextFieldStyle = (slot: (typeof textSlots)[number]): React.CSSProperties => {
     const padding = typeof slot.style.padding === 'number' ? slot.style.padding : 0
-    const strokeWidth = slot.style.stroke?.width ?? 0
+    const isPresetDisplaySlot =
+      slot.appearanceScope === 'preset' && activeTextInput !== slot.inputName
 
     return {
       left: slot.x * canvasScale,
@@ -226,12 +234,11 @@ export default function CreatePage({ params }: CreatePageProps) {
       fontSize: slot.style.fontSize * canvasScale,
       fontWeight: slot.style.fontWeight,
       fontStyle: slot.style.fontStyle,
-      lineHeight: slot.style.lineHeight ?? 1.2,
+      lineHeight: String(slot.style.lineHeight ?? 1.2),
       textAlign: slot.style.textAlign === 'justify' ? 'left' : slot.style.textAlign,
       backgroundColor: slot.style.backgroundColor ?? 'transparent',
-      WebkitTextStroke: slot.style.stroke
-        ? `${strokeWidth * canvasScale}px ${slot.style.stroke.color}`
-        : undefined,
+      color: isPresetDisplaySlot ? 'transparent' : slot.style.fill,
+      caretColor: slot.style.fill,
     }
   }
 
@@ -368,6 +375,8 @@ export default function CreatePage({ params }: CreatePageProps) {
                           [slot.inputName]: event.target.value,
                         }))
                       }
+                      onFocus={() => setActiveTextInput(slot.inputName)}
+                      onBlur={() => setActiveTextInput((current) => (current === slot.inputName ? null : current))}
                     />
                   ) : (
                     <input
@@ -382,6 +391,8 @@ export default function CreatePage({ params }: CreatePageProps) {
                           [slot.inputName]: event.target.value,
                         }))
                       }
+                      onFocus={() => setActiveTextInput(slot.inputName)}
+                      onBlur={() => setActiveTextInput((current) => (current === slot.inputName ? null : current))}
                     />
                   )
                 })}
