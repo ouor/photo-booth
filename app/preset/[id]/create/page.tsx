@@ -10,6 +10,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { mockStickers } from '@/lib/data/stickers'
 import { getEditorPresetDocument } from '@/lib/data/preset-documents'
 import { getPresetById as getPresetMetaById } from '@/lib/data/presets'
+import { renderPresetResultDataUrl } from '@/lib/export'
 import {
   applyImageFilterAdjustments,
   defaultImageFilterAdjustments,
@@ -22,7 +23,7 @@ import {
   getOverlayListMeta,
 } from '@/lib/overlay-presenter'
 import type { OverlayItem } from '@/lib/overlay-editor'
-import { compilePreset } from '@/lib/preset-compiler'
+import { compileExportModel, compilePreset } from '@/lib/preset-compiler'
 import {
   renderPresetToCanvas,
   type RenderImageValue,
@@ -122,6 +123,13 @@ export default function CreatePage({ params }: CreatePageProps) {
   const activeImageFilters = activeImageFilterSlot
     ? getImageFilterAdjustments(imageFilterAdjustments, activeImageFilterSlot.inputName)
     : defaultImageFilterAdjustments
+  const exportModel = useMemo(
+    () =>
+      resolvedRenderModel
+        ? compileExportModel(resolvedRenderModel, compiledPreset.editorModel, overlays)
+        : null,
+    [compiledPreset?.editorModel, overlays, resolvedRenderModel],
+  )
 
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
@@ -150,12 +158,18 @@ export default function CreatePage({ params }: CreatePageProps) {
     reader.readAsDataURL(file)
   }
 
-  const handleComplete = () => {
-    if (!canvasRef.current) {
+  const handleComplete = async () => {
+    if (!resolvedRenderModel || !exportModel) {
       return
     }
 
-    const uri = canvasRef.current.toDataURL('image/png')
+    const uri = await renderPresetResultDataUrl({
+      renderModel: resolvedRenderModel,
+      exportModel,
+      inputs: renderInputs,
+      overlays,
+      type: 'image/png',
+    })
     localStorage.setItem('lastCreatedImage', uri)
     router.push(`/preset/${id}/result?image=${encodeURIComponent(uri)}`)
   }
@@ -203,7 +217,7 @@ export default function CreatePage({ params }: CreatePageProps) {
                 <Trash2 className="w-4 h-4" />
               </Button>
             ) : null}
-            <Button onClick={handleComplete} className="bg-primary hover:bg-primary/90">
+            <Button onClick={() => void handleComplete()} className="bg-primary hover:bg-primary/90">
               완료
             </Button>
           </div>
@@ -534,7 +548,7 @@ export default function CreatePage({ params }: CreatePageProps) {
                 <Sparkles className="w-5 h-5 text-primary" />
                 출력
               </h2>
-              <Button onClick={handleComplete} className="w-full bg-primary hover:bg-primary/90">
+              <Button onClick={() => void handleComplete()} className="w-full bg-primary hover:bg-primary/90">
                 <Download className="w-4 h-4 mr-2" />
                 결과 보기
               </Button>
