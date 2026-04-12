@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import localFont from 'next/font/local'
 import { Analytics } from '@vercel/analytics/next'
+import { BottomNav } from '@/components/bottom-nav'
 import './globals.css'
 
 const nanumMugunghwa = localFont({
@@ -41,6 +42,7 @@ export default function RootLayout({
     <html lang="ko" className={nanumMugunghwa.variable}>
       <body className="font-sans antialiased">
         {children}
+        <BottomNav />
         {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>
     </html>
